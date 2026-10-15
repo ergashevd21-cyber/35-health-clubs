@@ -59,23 +59,38 @@ $("refreshRequest").onclick=refresh;$("logoutPending").onclick=logout;$("logoutA
 async function finishEmailConfirmation(){
  try{
   const url=new URL(location.href);
-  if(url.searchParams.has("code")){
-   const {error}=await client.auth.exchangeCodeForSession(url.searchParams.get("code"));
+  const params=new URLSearchParams(url.search);
+  const hashParams=new URLSearchParams(url.hash.startsWith("#")?url.hash.slice(1):url.hash);
+  const code=params.get("code");
+  const tokenHash=params.get("token_hash")||hashParams.get("token_hash");
+  const type=params.get("type")||hashParams.get("type");
+  if(code){
+   const {error}=await client.auth.exchangeCodeForSession(code);
    if(error) throw error;
-   url.searchParams.delete("code");history.replaceState({},document.title,url.pathname+url.search+url.hash);
+   params.delete("code");
+   history.replaceState({},document.title,url.pathname+(params.toString()?"?"+params.toString():"")+url.hash);
    message("authStatus","Email подтверждён. Проверяем доступ…");
+  }else if(tokenHash&&type){
+   const allowedTypes=["signup","email","recovery","invite","magiclink","email_change"];
+   if(!allowedTypes.includes(type)) throw new Error("Неизвестный тип подтверждения: "+type);
+   const {error}=await client.auth.verifyOtp({token_hash:tokenHash,type});
+   if(error) throw error;
+   params.delete("token_hash");params.delete("type");
+   hashParams.delete("token_hash");hashParams.delete("type");
+   history.replaceState({},document.title,url.pathname+(params.toString()?"?"+params.toString():"")+(hashParams.toString()?"#"+hashParams.toString():""));
+   message("authStatus","Email подтверждён. Теперь можно войти в систему.");
   }
   if(url.hash.includes("error=")){
    const p=new URLSearchParams(url.hash.slice(1));
    const err=p.get("error_description")||p.get("error")||"Ссылка подтверждения недействительна.";
-   show("authCard",true);message("authStatus",decodeURIComponent(err.replace(/\\+/g," ")),true);
+   show("authCard",true);message("authStatus",err.replace(/\\+/g," "),true);
    history.replaceState({},document.title,url.pathname+url.search);
    return;
   }
   await refresh();
  }catch(e){
   show("authCard",true);
-  message("authStatus","Не удалось подтвердить email. Ссылка могла истечь или адрес возврата не разрешён в Supabase. Запросите новое письмо. Подробности: "+friendly(e),true);
+  message("authStatus","Не удалось подтвердить email. Возможно, ссылка истекла, уже использована или URL возврата не разрешён в настройках Supabase. Запросите новое письмо. Подробности: "+friendly(e),true);
  }
 }
 client.auth.onAuthStateChange((event)=>{if(event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED")setTimeout(refresh,0)});
