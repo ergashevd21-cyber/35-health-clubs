@@ -39,7 +39,7 @@ document.getElementById("managerScale").innerHTML=Array.from({length:11},(_,n)=>
 let lastGroup="";
 defs.forEach((q,i)=>{
  const [id,label,type]=q;let html='<section class="question"><fieldset style="border:0;padding:0;margin:0"><legend>'+(i+2)+'. '+label+(type==="text"?' <span class="optional">необязательно</span>':'')+'</legend>';
- if(type==="choice"||type==="yesno"){const vals=type==="yesno"?["Да","Нет"]:choiceLabels;html+='<div class="choices '+(vals.length===2?'two':'')+'">'+vals.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+v+'" '+(type==="choice"?'required':'')+'><span>'+v+'</span></label>').join("")+'</div>'}
+ if(type==="choice"||type==="yesno"){const vals=type==="yesno"?["Да","Нет"]:choiceLabels;html+='<div class="choices '+(vals.length===2?'two':'')+'">'+vals.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+v+'" '+"required"+'><span>'+v+'</span></label>').join("")+'</div>'}
  else html+='<textarea name="'+id+'" maxlength="1500" placeholder="Напишите ответ здесь…"></textarea>';
  html+='</fieldset></section>';root.insertAdjacentHTML("beforeend",html);
 });
