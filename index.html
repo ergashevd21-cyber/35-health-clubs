@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#17372f"><title>35 HC — Голос команды</title>
+<style>
+:root{color-scheme:light;--ink:#17372f;--muted:#66776f;--line:#e0e8df;--paper:#f4f6f1;--lime:#d8f36a;--white:#fff}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 Inter,system-ui,-apple-system,Segoe UI,sans-serif}.shell{max-width:780px;margin:auto;padding:0 20px 60px}.nav{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{font-size:22px;font-weight:850;letter-spacing:-1px}.brand span{font-size:10px;letter-spacing:1px;border:1px solid #c8d4c8;border-radius:4px;padding:5px;margin-left:7px}.nav small,.eyebrow{font-size:10px;letter-spacing:1.5px;font-weight:750;color:var(--muted)}.hero{padding:36px 0 22px}.eyebrow{color:#84927b}.hero h1{font-size:clamp(32px,7vw,48px);line-height:1.06;letter-spacing:-2px;margin:12px 0}.hero p{color:var(--muted);max-width:590px;margin:0}.privacy{background:#e9eee5;padding:14px 16px;border-radius:10px;font-size:12px;color:#56665d;margin:20px 0}.progress-wrap{height:5px;background:#e0e7de;border-radius:8px;overflow:hidden;margin:20px 0 7px}.progress{height:100%;width:0;background:#91a77a;transition:width .2s}.progress-label{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}.group{margin:24px 0 12px;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#7b8c7d;font-weight:800}.question{background:var(--white);border:1px solid var(--line);border-radius:13px;padding:20px;margin:12px 0}.question legend,.question h2{font-size:15px;line-height:1.45;font-weight:700;margin:0 0 15px;padding:0}.scale{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:5px}.scale label{display:block;text-align:center}.scale input{position:absolute;opacity:0;pointer-events:none}.scale span{display:grid;place-items:center;min-height:39px;border:1px solid var(--line);border-radius:7px;font-size:12px;cursor:pointer}.scale input:checked+span{background:var(--ink);border-color:var(--ink);color:white}.scale input:focus-visible+span,.choice input:focus-visible+span{outline:3px solid #9eb87d;outline-offset:2px}.ends{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:8px}.choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.choices.two{grid-template-columns:repeat(2,minmax(0,1fr))}.choice input{position:absolute;opacity:0}.choice span{display:block;border:1px solid var(--line);border-radius:8px;padding:11px;text-align:center;font-size:13px;cursor:pointer}.choice input:checked+span{background:#eaf3d4;border-color:#9cb16f;font-weight:700}.question textarea{width:100%;min-height:92px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;font:inherit;font-size:14px;background:#fff;color:var(--ink)}.question textarea:focus{outline:2px solid #9eb87d;border-color:transparent}.optional{font-size:10px;color:var(--muted);font-weight:400;margin-left:5px}.actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:22px}.submit{border:0;background:var(--lime);color:#18332c;border-radius:9px;padding:14px 19px;font-weight:800;font-size:14px;cursor:pointer}.submit:disabled{opacity:.6;cursor:wait}.status{font-size:12px;color:var(--muted)}.error{color:#a33b32}.success{display:none;text-align:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px 24px;margin:35px 0}.success .check{font-size:35px}.success h2{font-size:28px;letter-spacing:-1px}.foot{margin-top:40px;color:#87948a;font-size:10px;letter-spacing:1px;display:flex;justify-content:space-between;gap:10px}.hidden{display:none!important}@media(max-width:520px){.shell{padding:0 13px 40px}.question{padding:16px}.scale{gap:3px}.scale span{min-height:35px;font-size:11px}.choices{gap:5px}.choice span{padding:10px 5px;font-size:12px}.nav small{font-size:8px}.hero{padding-top:28px}}
+</style></head><body><main class="shell"><header class="nav"><div class="brand">35<span>HEALTH CLUBS</span></div><small>PEOPLE & CULTURE</small></header>
+<section class="hero" id="intro"><div class="eyebrow">EMPLOYEE VOICE · HR SURVEY</div><h1>Твоё мнение<br>имеет значение.</h1><p>Опрос поможет нам понять, что работает хорошо и что нужно улучшить в компании. Отвечай честно — это поможет принимать более точные решения.</p><div class="privacy"><b>Конфиденциальность.</b> Не указывай своё имя. Ответы используются для общего анализа команды. Не включай в свободные ответы личные данные, по которым тебя можно определить.</div><div class="progress-wrap"><div class="progress" id="progress"></div></div><div class="progress-label"><span>Заполнение опроса</span><span id="progressText">0 из 17 вопросов</span></div></section>
+<form id="survey" novalidate>
+<div class="group">Руководство и процессы</div>
+<section class="question"><fieldset style="border:0;padding:0;margin:0"><legend>1. Насколько вы согласны: «Мой руководитель открыт к диалогу и доступен для вопросов»?</legend><div class="scale" id="managerScale"></div><div class="ends"><span>0 — совсем не согласен</span><span>10 — полностью согласен</span></div></fieldset></section>
+<div id="questions"></div>
+<div class="actions"><button class="submit" id="submit" type="submit">Отправить ответы →</button><span class="status" id="status" role="status" aria-live="polite">Ответы отправляются в защищённую базу.</span></div>
+</form>
+<section class="success" id="success"><div class="check">✓</div><h2>Спасибо за честный ответ.</h2><p>Твои ответы сохранены. Они помогут нам улучшать рабочую среду 35 Health Clubs.</p></section>
+<footer class="foot"><span>35 HEALTH CLUBS</span><span>ТВОЙ ГОЛОС ВАЖЕН</span></footer></main>
+<script>
+const SUPABASE_URL="https://mvpfqnkpojhakugohctn.supabase.co";
+const SUPABASE_KEY="sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y";
+const defs=[
+["processes","Насколько эффективно в компании выстроены рабочие процессы?","choice"],
+["recommend","Порекомендуете ли вы компанию как место работы знакомым?","choice"],
+["departments","Как бы вы оценили взаимодействие между отделами?","choice"],
+["manager_support","Чувствуете ли вы поддержку со стороны непосредственного руководителя?","yesno"],
+["onboarding","Насколько полезной для вас была адаптация (обучение) при приёме в компанию?","choice"],
+["preparedness","Насколько подготовленными вы себя ощущали в первые дни работы после обучения?","choice"],
+["belonging","Чувствуете ли вы себя частью команды?","choice"],
+["training_improve","Опишите, что хотели бы улучшить в системе обучения.","text"],
+["tenure_intent","Сколько вы планируете ещё проработать в нашей компании?","text"],
+["repulsion","Что в компании вызывает у вас наибольшее отторжение?","text"],
+["speak_up","Насколько безопасно открыто выражать несогласие с мнением руководителя или команды?","choice"],
+["obstacles","Что мешает вам добиваться целей в работе?","text"],
+["strategy_explained","Насколько эффективно руководство объясняет причины стратегических решений?","choice"],
+["tools","Насколько вы удовлетворены техническими условиями и инструментами (ПО/оборудование)?","choice"],
+["pay_fairness","Насколько зарплата соответствует вашему вкладу и уровню ответственности?","choice"],
+["pay_transparency","Насколько прозрачна политика пересмотра заработной платы?","choice"]
+];
+const choiceLabels=["Плохо","Нормально","Хорошо"];
+const root=document.getElementById("questions");
+document.getElementById("managerScale").innerHTML=Array.from({length:11},(_,n)=>'<label><input type="radio" name="manager_access" value="'+n+'" required><span>'+n+'</span></label>').join("");
+let lastGroup="";
+defs.forEach((q,i)=>{
+ const [id,label,type]=q;let html='<section class="question"><fieldset style="border:0;padding:0;margin:0"><legend>'+(i+2)+'. '+label+(type==="text"?' <span class="optional">необязательно</span>':'')+'</legend>';
+ if(type==="choice"||type==="yesno"){const vals=type==="yesno"?["Да","Нет"]:choiceLabels;html+='<div class="choices '+(vals.length===2?'two':'')+'">'+vals.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+v+'" '+(type==="choice"?'required':'')+'><span>'+v+'</span></label>').join("")+'</div>'}
+ else html+='<textarea name="'+id+'" maxlength="1500" placeholder="Напишите ответ здесь…"></textarea>';
+ html+='</fieldset></section>';root.insertAdjacentHTML("beforeend",html);
+});
+const form=document.getElementById("survey"),status=document.getElementById("status"),submit=document.getElementById("submit");
+function updateProgress(){const required=Array.from(form.querySelectorAll('input[required]'));const done=new Set(required.filter(x=>x.checked).map(x=>x.name)).size;const total=17;document.getElementById("progress").style.width=(done/total*100)+"%";document.getElementById("progressText").textContent=done+" из "+total+" обязательных вопросов"}
+form.addEventListener("change",updateProgress);
+form.addEventListener("submit",async e=>{
+ e.preventDefault();status.className="status";status.textContent="";
+ if(!form.reportValidity()){status.className="status error";status.textContent="Пожалуйста, ответьте на все вопросы с вариантами ответа.";return}
+ const answers={};new FormData(form).forEach((v,k)=>{const s=String(v).trim();if(s!=="")answers[k]=k==="manager_access"?Number(s):s});
+ if(typeof answers.manager_access!=="number"||answers.manager_access<0||answers.manager_access>10){status.className="status error";status.textContent="Проверьте оценку руководителя.";return}
+ submit.disabled=true;submit.textContent="Отправляем…";status.textContent="Сохраняем ответы…";
+ try{
+  const res=await fetch(SUPABASE_URL+"/rest/v1/survey_responses",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Prefer":"return=minimal"},body:JSON.stringify({answers,survey_version:"v1",submitted_at:new Date().toISOString()})});
+  if(!res.ok){let msg="Не удалось сохранить ответы. Попробуйте ещё раз.";try{const data=await res.json();if(data.message)console.error("Survey API:",data.message)}catch{}throw new Error(msg)}
+  form.classList.add("hidden");document.getElementById("intro").classList.add("hidden");document.getElementById("success").style.display="block";window.scrollTo({top:0,behavior:"smooth"});
+ }catch(err){status.className="status error";status.textContent=err.message||"Ошибка соединения. Проверьте интернет и попробуйте снова.";submit.disabled=false;submit.textContent="Попробовать снова →"}
+});
+updateProgress();
+</script></body></html>
