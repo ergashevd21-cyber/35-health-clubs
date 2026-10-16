@@ -44,7 +44,30 @@ defs.forEach((q,i)=>{
  html+='</fieldset></section>';root.insertAdjacentHTML("beforeend",html);
 });
 const form=document.getElementById("survey"),status=document.getElementById("status"),submit=document.getElementById("submit");
-function updateProgress(){const answered=new Set(Array.from(form.querySelectorAll('input[type="radio"]:checked')).map(x=>x.name));Array.from(form.querySelectorAll("textarea")).forEach(x=>{if(x.value.trim())answered.add(x.name)});const done=answered.size;const total=17;document.getElementById("progress").style.width=(done/total*100)+"%";document.getElementById("progressText").textContent=done+" из "+total+" вопросов заполнено"}
+let customQuestionCount=0;
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function updateProgress(){const answered=new Set(Array.from(form.querySelectorAll('input[type="radio"]:checked')).map(x=>x.name));Array.from(form.querySelectorAll("textarea")).forEach(x=>{if(x.value.trim())answered.add(x.name)});const done=answered.size;const total=17+customQuestionCount;document.getElementById("progress").style.width=(done/total*100)+"%";document.getElementById("progressText").textContent=done+" из "+total+" вопросов заполнено"}
+async function loadCustomQuestions(){
+ try{
+  const res=await fetch(SUPABASE_URL+"/rest/v1/survey_custom_questions?select=id,question_text,question_type,options,is_required&is_active=eq.true&order=sort_order.asc,created_at.asc",{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
+  if(!res.ok)throw new Error("Не удалось загрузить дополнительные вопросы");
+  const questions=await res.json();customQuestionCount=questions.length;
+  questions.forEach((q,i)=>{
+   const id="custom_"+q.id,label=escapeHtml(q.question_text),required=!!q.is_required;
+   let html='<section class="question"><fieldset style="border:0;padding:0;margin:0"><legend>'+(defs.length+i+2)+'. '+label+(!required?' <span class="optional">необязательно</span>':'')+'</legend>';
+   if(q.question_type==="choice"||q.question_type==="yesno"){
+    const vals=q.question_type==="yesno"?["Да","Нет"]:(Array.isArray(q.options)?q.options:[]);
+    html+='<div class="choices '+(vals.length===2?'two':'')+'">'+vals.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+escapeHtml(v)+'" '+(required?'required':'')+'><span>'+escapeHtml(v)+'</span></label>').join("")+'</div>';
+   }else if(q.question_type==="scale"){
+    html+='<div class="scale">'+Array.from({length:11},(_,n)=>'<label><input type="radio" name="'+id+'" value="'+n+'" '+(required?'required':'')+'><span>'+n+'</span></label>').join("")+'</div><div class="ends"><span>0 — минимальная оценка</span><span>10 — максимальная оценка</span></div>';
+   }else{
+    html+='<textarea name="'+id+'" maxlength="1500" '+(required?'required':'')+' placeholder="Напишите ответ здесь…"></textarea>';
+   }
+   html+='</fieldset></section>';root.insertAdjacentHTML("beforeend",html);
+  });
+ }catch(err){console.warn("Дополнительные вопросы недоступны:",err.message);status.textContent="Дополнительные вопросы сейчас не загрузились. Можно заполнить основной опрос."}
+ updateProgress();
+}
 form.addEventListener("change",updateProgress);form.addEventListener("input",updateProgress);
 form.addEventListener("submit",async e=>{
  e.preventDefault();status.className="status";status.textContent="";
@@ -58,5 +81,6 @@ form.addEventListener("submit",async e=>{
   form.classList.add("hidden");document.getElementById("intro").classList.add("hidden");document.getElementById("success").style.display="block";window.scrollTo({top:0,behavior:"smooth"});
  }catch(err){status.className="status error";status.textContent=err.message||"Ошибка соединения. Проверьте интернет и попробуйте снова.";submit.disabled=false;submit.textContent="Попробовать снова →"}
 });
+loadCustomQuestions().then(updateProgress);
 updateProgress();
 </script></body></html>
