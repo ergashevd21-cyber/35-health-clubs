@@ -18,7 +18,7 @@ const SUPABASE_URL="https://mvpfqnkpojhakugohctn.supabase.co";
 const SUPABASE_KEY="sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y";
 const defs=[
 ["processes","Насколько эффективно в компании выстроены рабочие процессы?","choice"],
-["recommend","Порекомендуете ли вы компанию как место работы знакомым?","choice"],
+["recommend","Насколько вероятно, что вы порекомендуете компанию как место работы знакомым?","scale"],
 ["departments","Как бы вы оценили взаимодействие между отделами?","choice"],
 ["manager_support","Чувствуете ли вы поддержку со стороны непосредственного руководителя?","yesno"],
 ["onboarding","Насколько полезной для вас была адаптация (обучение) при приёме в компанию?","choice"],
@@ -40,8 +40,9 @@ document.getElementById("managerScale").innerHTML=Array.from({length:11},(_,n)=>
 let lastGroup="";
 defs.forEach((q,i)=>{
  const [id,label,type]=q;let html='<section class="question"><fieldset style="border:0;padding:0;margin:0"><legend>'+(i+2)+'. '+label+(type==="text"?' <span class="optional">необязательно</span>':'')+'</legend>';
- if(type==="choice"||type==="yesno"){const vals=type==="yesno"?["Да","Нет"]:choiceLabels;html+='<div class="choices '+(vals.length===2?'two':'')+'">'+vals.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+v+'" '+"required"+'><span>'+v+'</span></label>').join("")+'</div>'}
- else html+='<textarea name="'+id+'" maxlength="1500" placeholder="Напишите ответ здесь…"></textarea>';
+  if(type==="choice"||type==="yesno"){const vals=type==="yesno"?["Да","Нет"]:choiceLabels;html+='<div class="choices '+(vals.length===2?'two':'')+'">'+vals.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+v+'" '+"required"+'><span>'+v+'</span></label>').join("")+'</div>'}
+  else if(type==="scale"){html+='<div class="scale">'+Array.from({length:11},(_,n)=>'<label><input type="radio" name="'+id+'" value="'+n+'" required><span>'+n+'</span></label>').join("")+'</div><div class="ends"><span>0 — совсем не вероятно</span><span>10 — крайне вероятно</span></div>'}
+  else html+='<textarea name="'+id+'" maxlength="1500" placeholder="Напишите ответ здесь…"></textarea>';
  html+='</fieldset></section>';root.insertAdjacentHTML("beforeend",html);
 });
 const form=document.getElementById("survey"),status=document.getElementById("status"),submit=document.getElementById("submit");
