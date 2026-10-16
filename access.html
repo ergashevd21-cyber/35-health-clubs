@@ -33,6 +33,7 @@
 </div>
 <p id="authStatus" class="status" role="status" aria-live="polite"></p>
 </section>
+<section id="recoveryCard" class="card hidden"><h2>Установить новый пароль</h2><p>Введите новый пароль для своей учётной записи.</p><form id="updatePassword"><label for="newPassword">Новый пароль (минимум 8 символов)</label><input id="newPassword" type="password" minlength="8" autocomplete="new-password" required><label for="confirmPassword">Повторите новый пароль</label><input id="confirmPassword" type="password" minlength="8" autocomplete="new-password" required><button style="margin-top:14px" type="submit">Сохранить пароль</button></form><p id="recoveryStatus" class="status" role="status" aria-live="polite"></p></section>
 <section id="pendingCard" class="card hidden"><h2>Заявка на рассмотрении</h2><p>Ваша учётная запись создана. Дождитесь одобрения главного руководителя. До одобрения HR-отчёты закрыты.</p><p id="requestInfo" class="muted"></p><div class="row"><button id="refreshRequest" class="secondary">Проверить статус</button><button id="logoutPending" class="secondary">Выйти</button></div><p id="pendingStatus" class="status" role="status"></p></section>
 <section id="approvedCard" class="card hidden"><h2>Доступ разрешён</h2><p id="roleInfo"></p><div class="row"><a id="dashboardLink" class="btn" href="./hr-report.html">Открыть HR-аналитику</a><button id="logoutApproved" class="secondary">Выйти</button></div></section>
 <section id="adminCard" class="card hidden"><h2>Управление заявками</h2><p class="muted">Действия выполняются сервером Supabase. Назначайте роли только тем сотрудникам, которым они нужны для работы.</p><div id="requests"><p class="muted">Загрузка заявок…</p></div><p id="adminStatus" class="status" role="status"></p></section>
@@ -48,6 +49,8 @@ function show(id,yes){$(id).classList.toggle("hidden",!yes)}
 function switchAuth(which){const login=which==="login";show("loginPanel",login);show("signupPanel",!login);$("tabLogin").setAttribute("aria-selected",String(login));$("tabSignup").setAttribute("aria-selected",String(!login));message("authStatus","");}
 $("tabLogin").onclick=()=>switchAuth("login");$("tabSignup").onclick=()=>switchAuth("signup");$("goSignup").onclick=()=>switchAuth("signup");$("goLogin").onclick=()=>switchAuth("login");
 $("forgotPassword").onclick=async()=>{const email=$("loginEmail").value.trim().toLowerCase();if(!email){message("authStatus","Сначала укажите email в форме входа.");return}message("authStatus","Отправляем ссылку для восстановления…");const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:new URL("./access.html",location.href).href});message("authStatus",error?friendly(error):"Если для этого email существует аккаунт, письмо для восстановления будет отправлено. Проверьте папку «Спам».",!!error)};
+$("updatePassword").addEventListener("submit",async e=>{e.preventDefault();const password=$("newPassword").value,confirm=$("confirmPassword").value;if(password.length<8){message("recoveryStatus","Пароль должен содержать минимум 8 символов.",true);return}if(password!==confirm){message("recoveryStatus","Пароли не совпадают.",true);return}message("recoveryStatus","Сохраняем новый пароль…");const {error}=await client.auth.updateUser({password});if(error){message("recoveryStatus",friendly(error),true);return}await client.auth.signOut();show("recoveryCard",false);show("authCard",true);switchAuth("login");message("authStatus","Пароль изменён. Теперь войдите с новым паролем.")});
+
 function friendly(e){const m=e?.message||"Не удалось выполнить операцию.";if(/invalid login credentials/i.test(m))return "Неверный email или пароль.";if(/email not confirmed/i.test(m))return "Подтвердите email по ссылке из письма, затем войдите.";if(/user already registered/i.test(m))return "Этот email уже зарегистрирован. Используйте форму входа.";return m}
 $("signup").addEventListener("submit",async e=>{e.preventDefault();message("authStatus","Создаём аккаунт…");const full_name=$("fullName").value.trim(),email=$("signupEmail").value.trim().toLowerCase(),password=$("signupPassword").value;if(password.length<8){message("authStatus","Пароль должен содержать минимум 8 символов.",true);return}const {data,error}=await client.auth.signUp({email,password,options:{data:{full_name},emailRedirectTo:new URL("./access.html",location.href).href}});if(error){message("authStatus",friendly(error),true);return}if(data.session){await ensureRequest(data.user,full_name);await refresh()}else{message("authStatus","Аккаунт создан. Проверьте почту и подтвердите email. После подтверждения войдите на этой странице.")}});
 $("login").addEventListener("submit",async e=>{e.preventDefault();message("authStatus","Входим…");const {error}=await client.auth.signInWithPassword({email:$("loginEmail").value.trim().toLowerCase(),password:$("loginPassword").value});if(error){message("authStatus",friendly(error),true);return}await refresh()});
@@ -64,9 +67,11 @@ async function finishEmailConfirmation(){
   const code=params.get("code");
   const tokenHash=params.get("token_hash")||hashParams.get("token_hash");
   const type=params.get("type")||hashParams.get("type");
+  const recoveryMode=type==="recovery"||hashParams.get("type")==="recovery";
   if(code){
    const {error}=await client.auth.exchangeCodeForSession(code);
    if(error) throw error;
+   if(recoveryMode){show("authCard",false);show("recoveryCard",true);message("recoveryStatus","Ссылка подтверждена. Установите новый пароль.");return;}
    params.delete("code");
    history.replaceState({},document.title,url.pathname+(params.toString()?"?"+params.toString():"")+url.hash);
    message("authStatus","Email подтверждён. Проверяем доступ…");
@@ -75,6 +80,7 @@ async function finishEmailConfirmation(){
    if(!allowedTypes.includes(type)) throw new Error("Неизвестный тип подтверждения: "+type);
    const {error}=await client.auth.verifyOtp({token_hash:tokenHash,type});
    if(error) throw error;
+   if(type==="recovery"){show("authCard",false);show("recoveryCard",true);message("recoveryStatus","Ссылка подтверждена. Установите новый пароль.");return;}
    params.delete("token_hash");params.delete("type");
    hashParams.delete("token_hash");hashParams.delete("type");
    history.replaceState({},document.title,url.pathname+(params.toString()?"?"+params.toString():"")+(hashParams.toString()?"#"+hashParams.toString():""));
@@ -93,6 +99,6 @@ async function finishEmailConfirmation(){
   message("authStatus","Не удалось подтвердить email. Возможно, ссылка истекла, уже использована или URL возврата не разрешён в настройках Supabase. Запросите новое письмо. Подробности: "+friendly(e),true);
  }
 }
-client.auth.onAuthStateChange((event)=>{if(event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED")setTimeout(refresh,0)});
+client.auth.onAuthStateChange((event,session)=>{if(event==="PASSWORD_RECOVERY"){show("authCard",false);show("recoveryCard",true);message("recoveryStatus","Ссылка подтверждена. Установите новый пароль.");return}if(event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED")setTimeout(refresh,0)});
 finishEmailConfirmation();
 </script></body></html>
