@@ -44,8 +44,8 @@ defs.forEach((q,i)=>{
  html+='</fieldset></section>';root.insertAdjacentHTML("beforeend",html);
 });
 const form=document.getElementById("survey"),status=document.getElementById("status"),submit=document.getElementById("submit");
-function updateProgress(){const required=Array.from(form.querySelectorAll('input[required]'));const done=new Set(required.filter(x=>x.checked).map(x=>x.name)).size;const total=17;document.getElementById("progress").style.width=(done/total*100)+"%";document.getElementById("progressText").textContent=done+" из "+total+" обязательных вопросов"}
-form.addEventListener("change",updateProgress);
+function updateProgress(){const answered=new Set(Array.from(form.querySelectorAll('input[type="radio"]:checked')).map(x=>x.name));Array.from(form.querySelectorAll("textarea")).forEach(x=>{if(x.value.trim())answered.add(x.name)});const done=answered.size;const total=17;document.getElementById("progress").style.width=(done/total*100)+"%";document.getElementById("progressText").textContent=done+" из "+total+" вопросов заполнено"}
+form.addEventListener("change",updateProgress);form.addEventListener("input",updateProgress);
 form.addEventListener("submit",async e=>{
  e.preventDefault();status.className="status";status.textContent="";
  if(!form.reportValidity()){status.className="status error";status.textContent="Пожалуйста, ответьте на все вопросы с вариантами ответа.";return}
