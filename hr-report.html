@@ -92,8 +92,9 @@ checkGate();
  }
  function renderTurnoverQuality(){
   const q=getTurnoverQuality(turnoverRows);
-  const items=[["Строк в файле",q.total],["Без отдела",q.missingDepartment],["Без должности",q.missingPosition],["Без типа увольнения",q.missingType],["Без причины",q.missingReason],["С пустыми или некорректными датами",q.invalidDates]];
-  $t("turnoverQuality").innerHTML=items.map(([label,n])=>'<div class="line"><span>'+label+'</span><b>'+n+'</b></div>').join("")+(q.missingDepartment+q.missingPosition+q.missingType+q.missingReason+q.invalidDates===0?'<p class="muted">Проверенные поля заполнены; ошибок дат не обнаружено.</p>':'<p class="muted">Проверьте пропуски перед выводами по причинам, типам и отделам. Строки с ошибками дат не попадут в расчёты.</p>');
+  const issues=q.missingDepartment+q.missingPosition+q.missingType+q.missingReason+q.invalidDates;
+  const items=[["Строк в файле",q.total,false],["Без отдела",q.missingDepartment,true],["Без должности",q.missingPosition,true],["Без типа увольнения",q.missingType,true],["Без причины",q.missingReason,true],["С пустыми или некорректными датами",q.invalidDates,true]];
+  $t("turnoverQuality").innerHTML=items.map(([label,n,isIssue])=>'<div class="line"><span>'+label+'</span><b>'+n+(isIssue&&q.total?' ('+(n/q.total*100).toFixed(1)+'%)':'')+'</b></div>').join("")+(q.total===0?'<p class="muted">Загрузите CSV, чтобы проверить качество данных.</p>':issues===0?'<p class="muted">Проверенные поля заполнены; ошибок дат не обнаружено.</p>':'<p class="muted">Найдены проблемы в '+issues+' проверках полей. Проценты указаны от общего числа строк; одна строка может учитываться в нескольких категориях. Записи с ошибками дат не попадут в расчёты.</p>');
  }
  function renderTurnover(){
   renderTurnoverQuality();
