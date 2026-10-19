@@ -63,7 +63,7 @@ function renderCustomQuestions(){
  updateProgress();
 }
 async function loadCustomQuestions(){
- try{const res=await fetch(SUPABASE_URL+"/rest/v1/survey_custom_questions?select=id,question_text,question_type,options,is_required,target_departments,target_positions&is_active=eq.true&order=sort_order.asc,created_at.asc",{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});if(!res.ok)throw new Error("Не удалось загрузить дополнительные вопросы");customQuestions=await res.json();renderCustomQuestions()}
+ try{const res=await fetch(SUPABASE_URL+"/rest/v1/survey_custom_questions?select=id,question_text,question_type,options,is_required,target_departments,target_positions&is_active=eq.true&order=sort_order.asc,created_at.asc",{headers:{apikey:SUPABASE_KEY}});if(!res.ok)throw new Error("Не удалось загрузить дополнительные вопросы");customQuestions=await res.json();renderCustomQuestions()}
  catch(err){console.warn("Дополнительные вопросы недоступны:",err.message);status.textContent="Дополнительные вопросы сейчас не загрузились. Можно заполнить основной опрос"}
 }
 form.addEventListener("change",e=>{if(e.target.id==="surveyDepartment"||e.target.id==="surveyPosition"){renderCustomQuestions()}updateProgress()});form.addEventListener("input",updateProgress);
