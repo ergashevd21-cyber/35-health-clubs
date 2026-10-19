@@ -49,11 +49,18 @@ defs.forEach((q,i)=>{
 const form=document.getElementById("survey"),status=document.getElementById("status"),submit=document.getElementById("submit");
 let customQuestionCount=0,customQuestions=[],customQuestionOptions={};
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function updateProgress(){const answered=new Set(Array.from(form.querySelectorAll('input[type="radio"]:checked')).map(x=>x.name));Array.from(form.querySelectorAll("textarea")).forEach(x=>{if(x.value.trim())answered.add(x.name)});const done=answered.size;const total=17+customQuestionCount;document.getElementById("progress").style.width=(done/total*100)+"%";document.getElementById("progressText").textContent=done+" из "+total+" вопросов заполнено"}
+function updateProgress(){const answered=new Set(Array.from(form.querySelectorAll('input[type="radio"]:checked')).map(x=>x.name));Array.from(form.querySelectorAll("textarea")).forEach(x=>{if(x.value.trim())answered.add(x.name)});const done=answered.size;const total=defs.length+customQuestionCount+1;document.getElementById("progress").style.width=(done/total*100)+"%";document.getElementById("progressText").textContent=done+" из "+total+" вопросов заполнено"}
 function renderCustomQuestions(){
  const department=document.getElementById("surveyDepartment").value,position=document.getElementById("surveyPosition").value;
  const visible=customQuestions.filter(q=>(!q.target_departments?.length||q.target_departments.includes(department))&&(!q.target_positions?.length||q.target_positions.includes(position)));
  customQuestionCount=visible.length;const root=document.getElementById("questions");root.innerHTML="";
+ defs.forEach((q,i)=>{
+  const [id,label,type]=q;const vals=customQuestionOptions[id]?.length?customQuestionOptions[id]:(type==="yesno"?["Да","Нет"]:["Плохо","Нормально","Хорошо"]);let html='<section class="question"><fieldset style="border:0;padding:0;margin:0"><legend>'+(i+2)+'. '+escapeHtml(label)+(type==="text"?' <span class="optional">необязательно</span>':'')+'</legend>';
+  if(type==="choice"||type==="yesno"){const choices=type==="yesno"?["Да","Нет"]:vals;html+='<div class="choices '+(choices.length===2?'two':'')+'">'+choices.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+escapeHtml(v)+'" required><span>'+escapeHtml(v)+'</span></label>').join("")+'</div>'}
+  else if(type==="scale"){html+='<div class="scale">'+Array.from({length:11},(_,n)=>'<label><input type="radio" name="'+id+'" value="'+n+'" required><span>'+n+'</span></label>').join("")+'</div><div class="ends"><span>0 — минимальная оценка</span><span>10 — максимальная оценка</span></div>'}
+  else html+='<textarea name="'+id+'" maxlength="1500" placeholder="Напишите ответ здесь…"></textarea>';
+  html+='</fieldset></section>';root.insertAdjacentHTML("beforeend",html);
+ });
  visible.forEach((q,i)=>{
   const id="custom_"+q.id,label=escapeHtml(q.question_text),required=!!q.is_required;let html='<section class="question"><fieldset style="border:0;padding:0;margin:0"><legend>'+(defs.length+i+2)+'. '+label+(!required?' <span class="optional">необязательно</span>':'')+'</legend>';
   if(q.question_type==="choice"||q.question_type==="yesno"){const vals=q.question_type==="yesno"?["Да","Нет"]:(Array.isArray(q.options)?q.options:[]);html+='<div class="choices '+(vals.length===2?'two':'')+'">'+vals.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+escapeHtml(v)+'" '+(required?'required':'')+'><span>'+escapeHtml(v)+'</span></label>').join("")+'</div>'}
