@@ -19,7 +19,7 @@
 const client=window.supabase.createClient("https://mvpfqnkpojhakugohctn.supabase.co","sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
 const DEPARTMENTS=["Call Center","Продажи","Тренерский отдел","Администрация клубов","HR","Маркетинг","Финансы","Операционный отдел","IT","Другое"];
-const POSITIONS=["Оператор Call Center","Hunter","Pusher","Closer","Team Lead","Тренер","Администратор клуба","Рекрутер","HR-менеджер","HR-директор","Промоутер","Руководитель отдела","Финансовый специалист","Другое"];
+const POSITIONS=["Тренеры","Хантеры","HR","Промоутеры","Другое"];
 let questions=[];
 function msg(id,text,error=false){$(id).textContent=text;$(id).className="status "+(error?"error":"success")}
 function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
