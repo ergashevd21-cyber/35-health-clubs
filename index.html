@@ -38,14 +38,6 @@ let defs=[
 const choiceLabels=["Плохо","Нормально","Хорошо"];
 const root=document.getElementById("questions");
 document.getElementById("managerScale").innerHTML=Array.from({length:11},(_,n)=>'<label><input type="radio" name="manager_access" value="'+n+'" required><span>'+n+'</span></label>').join("");
-let lastGroup="";
-defs.forEach((q,i)=>{
- const [id,label,type]=q;const optionLabels=customQuestionOptions[id]?.length?customQuestionOptions[id]:choiceLabels;let html='<section class="question"><fieldset style="border:0;padding:0;margin:0"><legend>'+(i+2)+'. '+label+(type==="text"?' <span class="optional">необязательно</span>':'')+'</legend>';
-  if(type==="choice"||type==="yesno"){const vals=type==="yesno"?["Да","Нет"]:choiceLabels;html+='<div class="choices '+(vals.length===2?'two':'')+'">'+vals.map(v=>'<label class="choice"><input type="radio" name="'+id+'" value="'+v+'" '+"required"+'><span>'+v+'</span></label>').join("")+'</div>'}
-  else if(type==="scale"){html+='<div class="scale">'+Array.from({length:11},(_,n)=>'<label><input type="radio" name="'+id+'" value="'+n+'" required><span>'+n+'</span></label>').join("")+'</div><div class="ends"><span>0 — совсем не вероятно</span><span>10 — крайне вероятно</span></div>'}
-  else html+='<textarea name="'+id+'" maxlength="1500" placeholder="Напишите ответ здесь…"></textarea>';
- html+='</fieldset></section>';root.insertAdjacentHTML("beforeend",html);
-});
 const form=document.getElementById("survey"),status=document.getElementById("status"),submit=document.getElementById("submit");
 let customQuestionCount=0,customQuestions=[],customQuestionOptions={};
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
