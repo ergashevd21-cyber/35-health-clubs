@@ -37,10 +37,10 @@
 <section id="pendingCard" class="card hidden"><h2>Заявка на рассмотрении</h2><p>Ваша учётная запись создана. Дождитесь одобрения главного руководителя. До одобрения HR-отчёты закрыты.</p><p id="requestInfo" class="muted"></p><div class="row"><button id="refreshRequest" class="secondary">Проверить статус</button><button id="logoutPending" class="secondary">Выйти</button></div><p id="pendingStatus" class="status" role="status"></p></section>
 <section id="approvedCard" class="card hidden"><h2>Доступ разрешён</h2><p id="roleInfo"></p><div class="row"><a id="dashboardLink" class="btn" href="https://35-health-clubs-git-feature-hr-workspac-a8f3dd-ergashevd21-4168.vercel.app/hr-report.html">Открыть HR-аналитику</a><a id="questionAdminLink" class="btn hidden" href="https://35-health-clubs-git-feature-hr-workspac-a8f3dd-ergashevd21-4168.vercel.app/question-admin.html">Управление вопросами</a><button id="logoutApproved" class="secondary">Выйти</button></div></section>
 <section id="adminCard" class="card hidden">
-<h2>Управление заявками</h2><p class="muted">Действия выполняются сервером Supabase. Назначайте роли только тем сотрудникам, которым они нужны для работы.</p><div id="requests"><p class="muted">Загрузка заявок…</p></div><p id="adminStatus" class="status" role="status"></p>
+<h2>Управление заявками</h2><p class="muted">Назначение ролей выполняется системой. Выдавайте доступ только тем сотрудникам, которым он необходим для работы.</p><div id="requests"><p class="muted">Загрузка заявок…</p></div><p id="adminStatus" class="status" role="status"></p>
 
 </section>
-<div class="warning">Безопасность: роль не выбирается самим пользователем. Новая регистрация не получает доступ к отчётам автоматически. Первый владелец системы должен быть назначен администратором базы данных Supabase.</div>
+<div class="warning">Безопасность: роль не выбирается самим пользователем. Новая регистрация не получает доступ к отчётам автоматически. Первый владелец системы должен быть назначен главным администратором.</div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const SUPABASE_URL="https://mvpfqnkpojhakugohctn.supabase.co";
@@ -100,7 +100,7 @@ async function finishEmailConfirmation(){
   await refresh();
  }catch(e){
   show("authCard",true);
-  message("authStatus","Не удалось подтвердить email. Возможно, ссылка истекла, уже использована или URL возврата не разрешён в настройках Supabase. Запросите новое письмо. Подробности: "+friendly(e),true);
+  message("authStatus","Не удалось подтвердить email. Возможно, ссылка истекла, уже использована или адрес возврата не разрешён настройками системы. Запросите новое письмо. Подробности: "+friendly(e),true);
  }
 }
 client.auth.onAuthStateChange((event,session)=>{if(event==="PASSWORD_RECOVERY"){show("authCard",false);show("recoveryCard",true);message("recoveryStatus","Ссылка подтверждена. Установите новый пароль.");return}if(event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED")setTimeout(refresh,0)});
