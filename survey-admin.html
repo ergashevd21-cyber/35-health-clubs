@@ -54,14 +54,33 @@ const client=window.supabase.createClient("https://mvpfqnkpojhakugohctn.supabase
 const SURVEY_ADMIN_API="https://mvpfqnkpojhakugohctn.supabase.co/functions/v1/hr-survey-admin";
 const PUBLIC_API_KEY="sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y";
 async function adminApi(action,payload={},method="POST"){
- const {data:{session}}=await client.auth.getSession();
- if(!session?.access_token)throw new Error("Сессия истекла. Войдите снова.");
+ let {data:{session},error:sessionError}=await client.auth.getSession();
+ if(sessionError)console.warn("Не удалось прочитать текущую сессию:",sessionError.message);
+ if(!session?.access_token){
+  const refreshed=await client.auth.refreshSession();
+  session=refreshed.data?.session||null;
+  if(refreshed.error||!session?.access_token)throw new Error("Ваша сессия завершилась. Войдите в систему снова и повторите сохранение.");
+ }
  let url=SURVEY_ADMIN_API;
- const options={method,headers:{apikey:PUBLIC_API_KEY,Authorization:"Bearer "+session.access_token}};
  if(method==="GET")url+="?"+new URLSearchParams({action,...payload}).toString();
- else{options.headers["Content-Type"]="application/json";options.body=JSON.stringify({action,...payload})}
- const response=await fetch(url,options);const data=await response.json().catch(()=>({}));
- if(!response.ok)throw new Error(data.error||"Не удалось выполнить действие.");
+ const send=token=>{
+  const options={method,headers:{apikey:PUBLIC_API_KEY,Authorization:"Bearer "+token}};
+  if(method!=="GET"){options.headers["Content-Type"]="application/json";options.body=JSON.stringify({action,...payload})}
+  return fetch(url,options);
+ };
+ let response=await send(session.access_token);
+ if(response.status===401){
+  const refreshed=await client.auth.refreshSession();
+  const nextSession=refreshed.data?.session;
+  if(refreshed.error||!nextSession?.access_token)throw new Error("Сессия больше не действительна. Войдите снова. Ваши изменения не были сохранены.");
+  response=await send(nextSession.access_token);
+ }
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok){
+  const message=data.error||"Не удалось выполнить действие.";
+  if(response.status===401)throw new Error("Supabase отклонил сессию. Выйдите из аккаунта, войдите снова и повторите действие.");
+  throw new Error(message);
+ }
  return data;
 }
 
