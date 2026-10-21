@@ -291,13 +291,54 @@ function exportCompanyComparison(){
  ];
  exportCsv(lines,"35HC-HR-obshiy-otchet-"+from+"-"+to+".csv");
 }
+function setupRunControls(data){
+ const current=gateById("runFilter"),compare=gateById("compareRunFilter"),runs=data.surveyRuns||[];
+ const previousCompare=compare.value,selectedRunId=data.selectedRunId||"";
+ current.innerHTML=runs.length?runs.map(r=>'<option value="'+escapeHtml(r.id)+'">Запуск '+escapeHtml(r.run_number)+' · '+escapeHtml(r.title||"Без названия")+' · '+(r.status==="active"?"активен":"завершён")+' · '+(r.responseCount==null?"меньше 5":escapeHtml(r.responseCount))+' ответов</option>').join(""):'<option value="">Нет запусков</option>';
+ current.value=selectedRunId;
+ const choices=runs.filter(r=>String(r.id)!==String(selectedRunId));
+ compare.innerHTML='<option value="">Не сравнивать</option>'+choices.map(r=>'<option value="'+escapeHtml(r.id)+'">Запуск '+escapeHtml(r.run_number)+' · '+escapeHtml(r.title||"Без названия")+' · '+(r.responseCount==null?"меньше 5":escapeHtml(r.responseCount))+' ответов</option>').join("");
+ if(choices.some(r=>String(r.id)===String(previousCompare)))compare.value=previousCompare;
+ else{const selected=runs.find(r=>String(r.id)===String(selectedRunId));const older=choices.find(r=>r.status==="closed"&&(!selected||Number(r.run_number)<Number(selected.run_number)))||choices[0];compare.value=older?.id||"";}
+ const run=runs.find(r=>String(r.id)===String(selectedRunId));
+ gateById("runControlsMeta").textContent=run?"Выбран "+run.title+" · начало: "+new Date(run.starts_at).toLocaleString("ru-RU")+". Результаты ниже относятся только к этому запуску.":"Для опроса ещё не создан запуск.";
+}
+async function renderRunComparison(data){
+ const root=gateById("runComparison"),surveyId=gateById("surveyFilter")?.value||"";
+ const selectedRunId=gateById("runFilter")?.value||data?.selectedRunId||"",compareRunId=gateById("compareRunFilter")?.value||"";
+ if(!surveyId||!selectedRunId||!compareRunId){root.innerHTML='<p class="muted">Выберите предыдущий запуск, чтобы сравнить его с выбранным.</p>';return}
+ if(selectedRunId===compareRunId){root.innerHTML='<p class="muted">Выберите два разных запуска.</p>';return}
+ root.innerHTML='<p class="muted">Сравниваем запуски…</p>';
+ try{
+  const params=new URLSearchParams({survey_id:surveyId,run_id:compareRunId});
+  const response=await fetch("https://mvpfqnkpojhakugohctn.supabase.co/functions/v1/hr-public-summary?"+params.toString(),{headers:{apikey:"sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y"}});
+  const old=await response.json().catch(()=>({}));if(!response.ok)throw new Error(old.error||"Не удалось загрузить предыдущий запуск.");
+  if(data.suppressed||old.suppressed){root.innerHTML='<p class="muted">Сравнение скрыто. В каждом запуске нужно минимум 5 ответов.</p>';return}
+  const oldQ=new Map((old.questionStats||[]).map(q=>[String(q.id),q])),newQ=new Map((data.questionStats||[]).map(q=>[String(q.id),q])),rows=[];
+  for(const [id,a] of oldQ.entries()){
+   const b=newQ.get(id);if(!b)continue;
+   if(typeof a.average==="number"&&typeof b.average==="number")rows.push({label:a.label,metric:"Средняя оценка 0–10",old:a.average,current:b.average,delta:Number((b.average-a.average).toFixed(2)),lower:false});
+   if(typeof a.negativePercent==="number"&&typeof b.negativePercent==="number")rows.push({label:a.label,metric:"Негативные ответы, %",old:a.negativePercent,current:b.negativePercent,delta:Number((b.negativePercent-a.negativePercent).toFixed(1)),lower:true});
+  }
+  if(typeof old.enps?.score==="number"&&typeof data.enps?.score==="number")rows.push({label:"eNPS",metric:"Лояльность",old:old.enps.score,current:data.enps.score,delta:data.enps.score-old.enps.score,enps:true});
+  if(!rows.length){root.innerHTML='<p class="muted">Нет общих показателей с достаточным количеством ответов в обоих запусках.</p>';return}
+  const outcome=r=>{const limit=r.enps?10:r.lower?5:.5;if(Math.abs(r.delta)<limit)return {text:"Без заметных изменений",cls:""};const good=r.lower?r.delta<0:r.delta>0;return {text:good?"Улучшилось":"Ухудшилось",cls:good?"run-compare-good":"run-compare-bad"}};
+  const format=(n,r)=>r.enps?((n>0?"+":"")+n):Number(n).toFixed(1).replace(".",",");
+  const previousTitle=old.selectedRunTitle||("Запуск "+(old.surveyRuns||[]).find(r=>r.id===compareRunId)?.run_number);
+  root.innerHTML='<p class="muted">Сравнение <span class="run-badge">'+escapeHtml(previousTitle||"Предыдущий запуск")+'</span> с <span class="run-badge">'+escapeHtml(data.selectedRunTitle||"Выбранный запуск")+'</span>.</p><div class="tablewrap"><table class="run-compare-table"><thead><tr><th>Вопрос / показатель</th><th>Метрика</th><th>Старый запуск</th><th>Новый запуск</th><th>Изменение</th><th>Вывод</th></tr></thead><tbody>'+rows.map(r=>{const o=outcome(r);return '<tr><td>'+escapeHtml(r.label)+'</td><td>'+escapeHtml(r.metric)+'</td><td>'+escapeHtml(format(r.old,r))+'</td><td>'+escapeHtml(format(r.current,r))+'</td><td class="'+o.cls+'">'+(r.delta>0?"+":"")+escapeHtml(format(r.delta,r))+'</td><td class="'+o.cls+'">'+o.text+'</td></tr>'}).join("")+'</tbody></table></div>';
+ }catch(error){root.innerHTML='<p class="status error">Ошибка сравнения запусков: '+escapeHtml(error.message)+'</p>'}
+}
 async function loadLiveStats(){
  hideReport(true);gate.classList.remove("hidden");gateById("liveStats").classList.remove("hidden");gateMsg("Загружаем безопасную сводку…");
  try{
   const {data:{session}}=await accessClient.auth.getSession();reportAccessGranted=Boolean(session);
   const login=gateById("gateLogin");if(session)login.classList.add("hidden");else login.classList.remove("hidden");
   const filter=gateById("surveyFilter"),selectedSurveyId=filter?.value||"";
-  const url="https://mvpfqnkpojhakugohctn.supabase.co/functions/v1/hr-public-summary"+(selectedSurveyId?"?survey_id="+encodeURIComponent(selectedSurveyId):"");
+  const query=new URLSearchParams();if(selectedSurveyId)query.set("survey_id",selectedSurveyId);
+  const requestedRunId=gateById("runFilter")?.value||"";
+  const selectedMeta=(lastSurveyList||[]).find(s=>String(s.id)===String(selectedSurveyId));
+  if(requestedRunId&&(selectedMeta?.runs||[]).some(r=>String(r.id)===String(requestedRunId)))query.set("run_id",requestedRunId);
+  const url="https://mvpfqnkpojhakugohctn.supabase.co/functions/v1/hr-public-summary"+(query.toString()?"?"+query.toString():"");
   const res=await fetch(url,{headers:{apikey:"sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y"}});
   const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||"Не удалось загрузить сводку.");lastLiveData=data;if(data.companyOverview)lastCompanyOverview=data.companyOverview;if(Array.isArray(data.surveys))lastSurveyList=data.surveys;
   if(filter&&Array.isArray(data.surveys)){
@@ -318,9 +359,10 @@ async function loadLiveStats(){
    gateById("liveCount").textContent="Выберите опрос, чтобы открыть его сводные показатели.";
    ["liveQuestionStats","liveEnps","liveMonthly","liveTrend","liveSegments"].forEach(id=>gateById(id).innerHTML="");
   }else{
+   setupRunControls(data);
    const title=data.selectedSurveyTitle||"Выбранный опрос";
    const count=data.suppressed?"недостаточно ответов — данные скрыты":String(data.totalResponses??"—");
-   gateById("liveCount").textContent="Опрос: "+title+" · Ответов: "+count;
+   gateById("liveCount").textContent="Опрос: "+title+" · "+(data.selectedRunTitle||"Выбранный запуск")+" · Ответов: "+count;
    gateById("liveQuestionStats").innerHTML=(data.questionStats||[]).map(s=>{
     const negative=s.negativePercent===null||s.negativePercent===undefined?"не рассчитывается":s.negativePercent+"%";
     const average=s.average===null||s.average===undefined?"—":s.average+"/10";
@@ -337,6 +379,7 @@ async function loadLiveStats(){
    gateById("liveTrend").innerHTML=trend.length?trend.map(x=>'<div class="barrow"><div class="row" style="justify-content:space-between"><span>'+escapeHtml(x.date)+'</span><b>'+x.count+'</b></div><div class="bar"><i style="width:'+Math.round(x.count/maxDay*100)+'%"></i></div></div>').join(""):'<p class="muted">Нет дней с 5 и более ответами.</p>';
    gateById("liveSegments").innerHTML='<p class="muted">Срезы по отделам и должностям не публикуются в открытой сводке.</p>';
    gateById("liveTenure").innerHTML='<p class="muted">Срез по стажу не публикуется в открытой сводке.</p>';
+   await renderRunComparison(data);
   }
   renderCompanyOverview();renderAdditionalAnalytics(data,Boolean(filter?.value));
   gateById("liveUpdated").textContent="Обновлено: "+new Date(data.generatedAt||Date.now()).toLocaleString("ru-RU");
@@ -354,6 +397,9 @@ async function checkGate(){
 }
 gateById("refreshLive").onclick=loadLiveStats;
 gateById("surveyFilter").onchange=loadLiveStats;
+gateById("runFilter").addEventListener("change",loadLiveStats);
+gateById("compareRunFilter").addEventListener("change",()=>renderRunComparison(lastLiveData));
+gateById("applyRunComparison").addEventListener("click",()=>renderRunComparison(lastLiveData));
 gateById("surveyCards").addEventListener("click",event=>{const card=event.target.closest("[data-survey-id]");if(!card)return;gateById("surveyFilter").value=card.dataset.surveyId;loadLiveStats()});
 gateById("compareMonthFrom").addEventListener("change",renderCompanyOverview);
 gateById("compareMonthTo").addEventListener("change",renderCompanyOverview);
