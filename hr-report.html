@@ -108,7 +108,108 @@ const accessClient=window.supabase.createClient("https://mvpfqnkpojhakugohctn.su
 const gate=gateById("accessGate");let reportAccessGranted=false;
 const gateMsg=(s,err=false)=>{ gateById("gateStatus").textContent=s; gateById("gateStatus").className=err?"muted error":"muted"; };
 function hideReport(hide){const report=$("report");if(hide&&report)report.classList.add("hidden");document.querySelectorAll("main > h1, main > .muted, main > .warning").forEach(el=>el.classList.remove("hidden"));}
-let lastLiveData=null;
+let lastLiveData=null,lastCompanyOverview=null,lastSurveyList=[];
+const overviewAspectLabels={leadership:"Руководство и поддержка",processes:"Рабочие процессы и условия",collaboration:"Взаимодействие и команда",training:"Обучение и адаптация",engagement:"Вовлечённость",compensation:"Оплата и справедливость",loyalty:"Лояльность компании",other:"Другие вопросы"};
+function monthLabel(month){if(!month)return "—";const d=new Date(month+"-01T12:00:00Z");return d.toLocaleDateString("ru-RU",{month:"long",year:"numeric",timeZone:"UTC"}).replace(/^./,x=>x.toLocaleUpperCase("ru-RU"));}
+function scoreLabel(value,id){if(value===null||value===undefined||!Number.isFinite(Number(value)))return "—";const n=Number(value);return id==="enps"?((n>0?"+":"")+n):n.toFixed(1).replace(".",",")+"/100";}
+function trendClass(delta,id){const threshold=id==="enps"?10:5;return delta>=threshold?"trend-up":delta<=-threshold?"trend-down":"trend-flat";}
+function trendLabel(delta,id){const threshold=id==="enps"?10:5;return delta>=threshold?"Улучшилось":delta<=-threshold?"Ухудшилось":"Без заметных изменений";}
+function buildOverviewComparisons(overview,from,to){
+ const list=overview?.monthly||[],old=list.find(x=>x.month===from),now=list.find(x=>x.month===to);
+ if(!old||!now)return {rows:[],matchedQuestions:0,old,now};
+ const oldQ=new Map((old.questions||[]).map(q=>[q.key,q])),newQ=new Map((now.questions||[]).map(q=>[q.key,q]));
+ const matched=[...oldQ.keys()].filter(k=>newQ.has(k)&&oldQ.get(k)?.aspect===newQ.get(k)?.aspect);
+ const rows=[];
+ if(matched.length>=3){
+  const prev=matched.reduce((s,k)=>s+Number(oldQ.get(k).score),0)/matched.length;
+  const curr=matched.reduce((s,k)=>s+Number(newQ.get(k).score),0)/matched.length;
+  const delta=Number((curr-prev).toFixed(1));
+  rows.push({id:"mood",label:"Индекс позитивных оценок — одинаковые вопросы",previous:Number(prev.toFixed(1)),current:Number(curr.toFixed(1)),delta,matchedQuestions:matched.length});
+ }
+ const group=new Map();
+ for(const key of matched){
+  const a=oldQ.get(key),b=newQ.get(key),id=a.aspect||"other";
+  if(!group.has(id))group.set(id,{id,label:overviewAspectLabels[id]||"Другие вопросы",previous:[],current:[],questionKeys:[]});
+  const g=group.get(id);g.previous.push(Number(a.score));g.current.push(Number(b.score));g.questionKeys.push(key);
+ }
+ for(const g of group.values()){
+  const previous=g.previous.reduce((a,b)=>a+b,0)/g.previous.length,current=g.current.reduce((a,b)=>a+b,0)/g.current.length;
+  rows.push({id:g.id,label:g.label,previous:Number(previous.toFixed(1)),current:Number(current.toFixed(1)),delta:Number((current-previous).toFixed(1)),matchedQuestions:g.questionKeys.length});
+ }
+ if(old.enps?.score!==null&&old.enps?.score!==undefined&&now.enps?.score!==null&&now.enps?.score!==undefined){
+  rows.push({id:"enps",label:"eNPS",previous:old.enps.score,current:now.enps.score,delta:now.enps.score-old.enps.score,matchedQuestions:1});
+ }
+ return {rows,matchedQuestions:matched.length,old,now};
+}
+function renderCompanyOverview(){
+ const o=lastCompanyOverview;if(!o)return;
+ const fromEl=gateById("compareMonthFrom"),toEl=gateById("compareMonthTo");
+ if(!fromEl||!toEl)return;
+ const months=o.months||[];
+ const optionHtml=months.map(m=>'<option value="'+escapeHtml(m)+'">'+escapeHtml(monthLabel(m))+'</option>').join("");
+ const existingFrom=fromEl.value,existingTo=toEl.value;
+ if(fromEl.options.length!==months.length||[...fromEl.options].map(x=>x.value).join("|")!==months.join("|")){
+  fromEl.innerHTML=optionHtml;toEl.innerHTML=optionHtml;
+ }
+ fromEl.value=months.includes(existingFrom)?existingFrom:(o.previousMonth||months[months.length-2]||"");
+ toEl.value=months.includes(existingTo)?existingTo:(o.currentMonth||months[months.length-1]||"");
+ const from=fromEl.value,to=toEl.value;
+ const result=buildOverviewComparisons(o,from,to);
+ const current=result.now||o.current||{},previous=result.old||o.previous||{};
+ const cards=[
+  ["Индекс позитивных оценок",current.moodIndex===null||current.moodIndex===undefined?"—":Number(current.moodIndex).toFixed(1).replace(".",",")+"/100",current.moodIndex===null||current.moodIndex===undefined?"Недостаточно сопоставимых вопросов":"Вопросов с 5+ ответами: "+(current.eligibleQuestions??"—")],
+  ["eNPS",current.enps?.score===null||current.enps?.score===undefined?"—":(current.enps.score>0?"+":"")+current.enps.score,"Нужны минимум 5 оценок по вопросу рекомендации"],
+  ["Ответы в периоде",current.responses===null||current.responses===undefined?"—":current.responses,"Число отправок, не уникальных сотрудников"],
+  ["Сопоставимых вопросов",result.matchedQuestions,"Одинаковая формулировка и тип вопроса в обоих периодах"]
+ ];
+ gateById("companyMoodMetrics").innerHTML=cards.map(x=>'<div class="card company-metric"><span class="muted">'+escapeHtml(x[0])+'</span><strong>'+escapeHtml(x[1])+'</strong><span class="muted">'+escapeHtml(x[2])+'</span></div>').join("");
+ const fmt=(v,id)=>v===null||v===undefined?"—":id==="enps"?((v>0?"+":"")+v):Number(v).toFixed(1).replace(".",",");
+ if(result.rows.length){
+  gateById("companyAspectComparison").innerHTML='<table><thead><tr><th>Аспект</th><th>'+escapeHtml(monthLabel(from))+'</th><th>'+escapeHtml(monthLabel(to))+'</th><th>Изменение</th><th>Вывод</th></tr></thead><tbody>'+result.rows.map(r=>'<tr><td>'+escapeHtml(r.label)+'</td><td>'+fmt(r.previous,r.id)+'</td><td>'+fmt(r.current,r.id)+'</td><td class="'+trendClass(r.delta,r.id)+'">'+(r.delta>0?"+":"")+fmt(r.delta,r.id)+'</td><td class="'+trendClass(r.delta,r.id)+'">'+trendLabel(r.delta,r.id)+'</td></tr>').join("")+'</tbody></table>';
+  gateById("companyCompareStatus").textContent="Сравниваются "+result.matchedQuestions+" одинаковых вопросов. Для индекса и аспектов прирост от 5 пунктов считается улучшением; eNPS меняется заметно при сдвиге от 10 пунктов.";
+ }else{
+  gateById("companyAspectComparison").innerHTML='<p class="muted">Нет данных для честного сравнения этих периодов.</p>';
+  gateById("companyCompareStatus").textContent="Чтобы выявить улучшения и ухудшения, нужно минимум 5 ответов на одинаковые вопросы в каждом периоде. За один из выбранных месяцев пока нет достаточных данных.";
+ }
+ const cmpSurveys=(lastSurveyList||[]).map(s=>{
+  const a=s.monthlyResponseCounts?.[from]??null,b=s.monthlyResponseCounts?.[to]??null;
+  const ready=a!==null&&b!==null;
+  return {title:s.title,previous:a,current:b,status:ready?"Есть данные для сравнения":"Недостаточно данных в одном из периодов"};
+ });
+ gateById("companySurveyComparison").innerHTML=cmpSurveys.length?'<table><thead><tr><th>Опрос</th><th>'+escapeHtml(monthLabel(from))+'</th><th>'+escapeHtml(monthLabel(to))+'</th><th>Статус</th></tr></thead><tbody>'+cmpSurveys.map(s=>'<tr><td>'+escapeHtml(s.title)+'</td><td>'+escapeHtml(s.previous===null?"—":String(s.previous))+'</td><td>'+escapeHtml(s.current===null?"—":String(s.current))+'</td><td>'+escapeHtml(s.status)+'</td></tr>').join("")+'</tbody></table>':'<p class="muted">Нет опубликованных опросов.</p>';
+ const monthly=(o.monthly||[]).filter(m=>m.responses!==null&&m.responses!==undefined||m.moodIndex!==null&&m.moodIndex!==undefined||m.enps?.score!==null&&m.enps?.score!==undefined);
+ gateById("companyMonthlyTrend").innerHTML=monthly.length?'<table><thead><tr><th>Месяц</th><th>Ответы</th><th>Индекс позитивных оценок</th><th>eNPS</th><th>Вопросов с 5+ ответами</th></tr></thead><tbody>'+monthly.map(m=>'<tr><td>'+escapeHtml(monthLabel(m.month))+'</td><td>'+escapeHtml(m.responses??"—")+'</td><td>'+escapeHtml(m.moodIndex===null||m.moodIndex===undefined?"—":Number(m.moodIndex).toFixed(1).replace(".",",")+"/100")+'</td><td>'+escapeHtml(m.enps?.score===null||m.enps?.score===undefined?"—":(m.enps.score>0?"+":"")+m.enps.score)+'</td><td>'+escapeHtml(m.eligibleQuestions??0)+'</td></tr>').join("")+'</tbody></table>':'<p class="muted">Пока нет месяцев с достаточными данными.</p>';
+ gateById("companyOverviewNote").textContent=(o.definition||"Индекс настроения является ориентиром, а не валидированным психологическим тестом.")+" "+(o.note||"Сравнение допускается только по одинаковым вопросам и при наличии не менее 5 ответов.");
+}
+function renderAdditionalAnalytics(data,selected){
+ const overview=data?.companyOverview||lastCompanyOverview;
+ const monthlyCurrent=overview?.current||{};
+ const stats=selected?(data?.questionStats||[]):(monthlyCurrent.questions||[]);
+ const neg=stats.filter(q=>q.negativePercent!==null&&q.negativePercent!==undefined);
+ gateById("bars").innerHTML=neg.length?neg.map(q=>'<div class="barrow"><div class="row" style="justify-content:space-between"><span>'+escapeHtml(q.label)+'</span><b>'+Number(q.negativePercent).toFixed(1).replace(".",",")+'%</b></div><div class="bar"><i style="width:'+Math.min(100,Math.max(0,Number(q.negativePercent)))+'%"></i></div></div>').join(""):'<p class="muted">Нет вопросов, для которых можно безопасно рассчитать долю негативных оценок. Нужно минимум 5 классифицированных ответов.</p>';
+ gateById("distribution").innerHTML='<p class="muted">Распределение по отдельным вариантам не публикуется в открытой сводке, чтобы не раскрывать редкие ответы. Доступны безопасные агрегаты и доля негативных оценок.</p>';
+ const topics=selected?(data?.openAnswerTopics||[]):(monthlyCurrent.topics||data?.openAnswerTopics||[]);
+ gateById("topics").innerHTML=topics.length?topics.map(t=>'<div class="line"><b>'+escapeHtml(t.label)+'</b><div class="muted">Упоминаний в ответах: '+t.responses+'</div></div>').join(""):'<p class="muted">Пока нет тем с 5 и более упоминаниями. Отдельные комментарии не показываются.</p>';
+ gateById("openAnswerAnalysis").textContent="Темы считаются по ключевым словам. Один ответ может относиться к нескольким темам; формулировки сотрудников не публикуются.";
+ const suggestions=[];
+ const aspectMap=new Map((monthlyCurrent.aspects||[]).filter(a=>a.score!==null&&a.score!==undefined).map(a=>[a.id,a]));
+ const advice={leadership:"Провести короткие встречи с руководителями и проверить регулярность обратной связи.",processes:"Выбрать 2–3 главных препятствия в рабочих процессах, назначить ответственных и сроки исправления.",collaboration:"Проверить передачу задач между отделами и согласовать правила взаимодействия.",training:"Проверить программу обучения и адаптации, а затем измерить готовность сотрудников после обучения.",engagement:"Провести короткую встречу с командой и выбрать одну инициативу для повышения вовлечённости.",compensation:"Проверить прозрачность правил оплаты, бонусов и пересмотра вознаграждения.",loyalty:"Уточнить причины низких оценок рекомендации и повторить замер после улучшений.",other:"Проверить содержание вопросов с низкими оценками и уточнить основную причину."};
+ for(const a of aspectMap.values())if(Number(a.score)<65)suggestions.push({label:a.label,body:advice[a.id]||advice.other});
+ for(const q of stats)if(q.negativePercent!==null&&q.negativePercent!==undefined&&Number(q.negativePercent)>=25)suggestions.push({label:q.label,body:"Разобрать причины негативных оценок по этому вопросу и согласовать одно конкретное улучшение."});
+ const unique=[...new Map(suggestions.map(s=>[s.label,s])).values()].slice(0,5);
+ gateById("actions").innerHTML=unique.length?unique.map((s,i)=>'<div class="line"><b>'+(i+1)+'. '+escapeHtml(s.label)+'</b><div class="muted">'+escapeHtml(s.body)+'</div></div>').join(""):'<p class="muted">Явных слабых аспектов по доступным данным нет. Продолжайте регулярный замер и проверяйте результат после следующих изменений.</p>';
+ const tenure=data?.tenureStats||[];
+ gateById("liveTenure").innerHTML=tenure.length?tenure.map(t=>'<div class="line"><b>'+escapeHtml(t.name)+'</b><div class="muted">Ответов: '+t.responses+' · Средняя оценка: '+Number(t.managerAverage).toFixed(1).replace(".",",")+'/10</div></div>').join(""):'<p class="muted">Нет групп стажа с 5 и более ответами. Данные по стажу скрываются, если группа меньше порога конфиденциальности.</p>';
+}
+function exportCompanyComparison(){
+ if(!lastCompanyOverview){gateMsg("Общая аналитика ещё не загрузилась.",true);return}
+ const from=gateById("compareMonthFrom").value,to=gateById("compareMonthTo").value;
+ const o=lastCompanyOverview,result=buildOverviewComparisons(o,from,to);
+ const fromData=result.old||{},toData=result.now||{};
+ const lines=[["Отчёт","35 Health Clubs — общая аналитика компании"],["Дата формирования",new Date().toLocaleString("ru-RU")],["Период 1",monthLabel(from)],["Период 2",monthLabel(to)],["Индекс позитивных оценок — период 1",fromData.moodIndex??"Недостаточно данных"],["Индекс позитивных оценок — период 2",toData.moodIndex??"Недостаточно данных"],["eNPS — период 1",fromData.enps?.score??"Недостаточно данных"],["eNPS — период 2",toData.enps?.score??"Недостаточно данных"],[],["Аспект","Период 1","Период 2","Изменение","Вывод"],...result.rows.map(r=>[r.label,r.previous,r.current,(r.delta>0?"+":"")+r.delta,trendLabel(r.delta,r.id)]),[],["Опрос","Период 1: ответов","Период 2: ответов","Статус"],...(lastSurveyList||[]).map(s=>[s.title,s.monthlyResponseCounts?.[from]??"—",s.monthlyResponseCounts?.[to]??"—",(s.monthlyResponseCounts?.[from]!==null&&s.monthlyResponseCounts?.[from]!==undefined&&s.monthlyResponseCounts?.[to]!==null&&s.monthlyResponseCounts?.[to]!==undefined)?"Можно сравнивать":"Недостаточно данных"]) ];
+ exportCsv(lines,"35HC-obshaya-analitika-"+from+"-"+to+".csv");
+}
+
 async function loadLiveStats(){
  hideReport(true);gate.classList.remove("hidden");gateById("liveStats").classList.remove("hidden");gateMsg("Загружаем безопасную сводку…");
  try{
@@ -117,7 +218,7 @@ async function loadLiveStats(){
   const filter=gateById("surveyFilter"),selectedSurveyId=filter?.value||"";
   const url="https://mvpfqnkpojhakugohctn.supabase.co/functions/v1/hr-public-summary"+(selectedSurveyId?"?survey_id="+encodeURIComponent(selectedSurveyId):"");
   const res=await fetch(url,{headers:{apikey:"sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y"}});
-  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||"Не удалось загрузить сводку.");lastLiveData=data;
+  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||"Не удалось загрузить сводку.");lastLiveData=data;if(data.companyOverview)lastCompanyOverview=data.companyOverview;if(Array.isArray(data.surveys))lastSurveyList=data.surveys;
   if(filter&&Array.isArray(data.surveys)){
    const prev=selectedSurveyId;
    filter.innerHTML='<option value="">Выберите опрос…</option>'+data.surveys.map(s=>'<option value="'+escapeHtml(s.id)+'">'+escapeHtml(s.title)+' · '+escapeHtml(s.status||"опубликован")+'</option>').join("");
@@ -133,7 +234,7 @@ async function loadLiveStats(){
   const selected=Boolean(filter?.value),detail=gateById("surveyDetail");detail.classList.toggle("hidden",!selected);
   if(!selected){
    gateById("liveCount").textContent="Выберите опрос, чтобы открыть его сводные показатели.";
-   ["liveQuestionStats","liveEnps","liveMonthly","liveTrend","liveSegments","liveTenure"].forEach(id=>gateById(id).innerHTML="");
+   ["liveQuestionStats","liveEnps","liveMonthly","liveTrend","liveSegments"].forEach(id=>gateById(id).innerHTML="");
   }else{
    const title=data.selectedSurveyTitle||"Выбранный опрос";
    const count=data.suppressed?"недостаточно ответов — данные скрыты":String(data.totalResponses??"—");
@@ -155,6 +256,7 @@ async function loadLiveStats(){
    gateById("liveSegments").innerHTML='<p class="muted">Срезы по отделам и должностям не публикуются в открытой сводке.</p>';
    gateById("liveTenure").innerHTML='<p class="muted">Срез по стажу не публикуется в открытой сводке.</p>';
   }
+  renderCompanyOverview();renderAdditionalAnalytics(data,Boolean(filter?.value));
   gateById("liveUpdated").textContent="Обновлено: "+new Date(data.generatedAt||Date.now()).toLocaleString("ru-RU");
   if(data.suppressed)gateMsg(data.suppressionMessage||"Результаты скрыты до накопления 5 ответов.");
   else gateMsg(reportAccessGranted?"Вход администратора активен. Публичная сводка обновлена.":"Публичная сводка доступна. Исходные ответы и комментарии не публикуются.");
@@ -173,6 +275,9 @@ gateById("gateSignIn").onclick=async()=>{gateMsg("Выполняется вхо�
 gateById("refreshLive").onclick=loadLiveStats;
 gateById("surveyFilter").onchange=loadLiveStats;
 gateById("surveyCards").addEventListener("click",event=>{const card=event.target.closest("[data-survey-id]");if(!card)return;gateById("surveyFilter").value=card.dataset.surveyId;loadLiveStats()});
+gateById("compareMonthFrom").addEventListener("change",renderCompanyOverview);
+gateById("compareMonthTo").addEventListener("change",renderCompanyOverview);
+gateById("exportCompanyOverview").onclick=exportCompanyComparison;
 gateById("exportLiveSummary").onclick=()=>{
  if(!lastLiveData?.selectedSurveyId){gateMsg("Сначала выберите опрос.",true);return}
  const d=lastLiveData;
