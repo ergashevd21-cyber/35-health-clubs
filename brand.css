@@ -210,3 +210,36 @@ hr{border:0;border-top:1px solid var(--hc-line)}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+/* Fix for survey selection cards and the contextual additional-analytics accordion */
+.survey-card{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:7px!important;width:100%!important;min-width:0;height:auto!important;min-height:158px;padding:19px 20px!important;margin:0!important;border:1px solid var(--hc-line)!important;border-radius:17px!important;background:#fff!important;color:var(--hc-ink)!important;text-align:left!important;white-space:normal!important;overflow-wrap:anywhere;box-shadow:0 5px 18px rgba(37,78,74,.055)!important;transform:none!important}
+.survey-card:hover{background:linear-gradient(135deg,#fff 0%,#f0f9f7 100%)!important;border-color:var(--hc-aqua)!important;color:var(--hc-ink)!important;box-shadow:var(--hc-shadow)!important;transform:translateY(-2px)!important}
+.survey-card[aria-pressed="true"]{background:linear-gradient(135deg,#f0f9f7 0%,#e7f5f2 100%)!important;border:1px solid var(--hc-teal-strong)!important;box-shadow:0 0 0 3px rgba(57,169,164,.12),var(--hc-shadow)!important}
+.survey-card-title{display:block;color:var(--hc-graphite-deep);font-size:17px;line-height:1.28;font-weight:850;letter-spacing:-.02em}
+.survey-card-purpose{display:block;color:var(--hc-green-deep);font-size:13px;line-height:1.45;font-weight:700}
+.survey-card-meta{display:block;color:var(--hc-muted);font-size:12px;line-height:1.45}
+.survey-card-status{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;color:var(--hc-muted);font-size:11px;line-height:1.35}
+.survey-status-label{display:inline-flex;align-items:center;border:1px solid #cce5e1;border-radius:999px;background:#f3faf8;color:var(--hc-green-deep);padding:3px 8px;font-weight:800}
+.survey-card-action{display:block;color:var(--hc-teal-strong);font-size:12px;font-weight:800;padding-top:7px;margin-top:auto}
+.survey-card[aria-pressed="true"] .survey-card-action{color:var(--hc-green-deep)}
+#surveyCards{align-items:stretch;gap:14px}#surveyCards>*{min-width:0}
+#additionalAnalytics{width:100%;max-width:100%;margin:22px 0 8px!important;padding:0!important;border:1px solid var(--hc-line)!important;border-radius:17px!important;background:#fff!important;box-shadow:var(--hc-shadow)!important;overflow:visible!important}
+#additionalAnalytics>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;min-height:64px;margin:0!important;padding:16px 19px!important;border-radius:16px;border:0!important;background:linear-gradient(100deg,#e7f4f2,#f8fbfa)!important;color:var(--hc-green-deep)!important;font-size:16px!important;line-height:1.35;font-weight:850!important;list-style:none;cursor:pointer}
+#additionalAnalytics>summary::-webkit-details-marker{display:none}#additionalAnalytics>summary::marker{content:""}
+#additionalAnalytics>summary::after{content:"+";display:inline-flex;flex:0 0 30px;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #bdded9;border-radius:50%;background:#fff;color:var(--hc-green-deep);font-size:21px;font-weight:500;line-height:1}
+#additionalAnalytics[open]>summary{margin:0!important;border-bottom:1px solid var(--hc-line)!important;border-radius:16px 16px 0 0}
+#additionalAnalytics[open]>summary::after{content:"−"}
+#additionalAnalytics>p.muted{margin:0;padding:17px 19px 4px}
+#additionalAnalytics>section.card{margin:14px 18px!important;box-shadow:none!important;border:1px solid var(--hc-line)!important;border-radius:14px!important}
+#additionalAnalytics .row{align-items:center}#additionalAnalytics .row input[type="file"]{flex:1 1 230px;min-width:0}#additionalAnalytics .row button{flex:0 1 auto;white-space:normal}
+.survey-analysis-actions{display:flex;flex-wrap:wrap;align-items:stretch;gap:9px;margin:18px 0 8px}
+.survey-analysis-actions button{flex:1 1 155px;min-width:0;max-width:100%;min-height:46px;white-space:normal;overflow-wrap:anywhere}
+.survey-analysis-actions #exportLiveHtml{flex:1.35 1 210px}
+#surveyDetail #liveCount{display:block;margin:14px 0;padding:13px 16px;border-left:4px solid var(--hc-teal-strong);border-radius:0 11px 11px 0;background:var(--hc-soft);color:var(--hc-graphite-deep);font-weight:800}
+.company-controls button{flex:0 1 auto;max-width:100%;white-space:normal}
+@media(max-width:700px){
+.survey-card{min-height:0;padding:16px!important}.survey-card-title{font-size:16px}
+#additionalAnalytics>summary{padding:15px!important;font-size:15px!important}#additionalAnalytics>section.card{margin:12px!important}#additionalAnalytics>p.muted{padding:14px 14px 3px}
+.survey-analysis-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.survey-analysis-actions button,.survey-analysis-actions #exportLiveHtml{width:100%;min-width:0;flex:auto;padding:10px!important;font-size:12px!important}
+.survey-analysis-actions #exportLiveHtml{grid-column:1/-1}.company-controls button{width:100%}
+}
