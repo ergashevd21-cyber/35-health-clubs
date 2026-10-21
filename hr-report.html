@@ -63,6 +63,7 @@
 <button class="btn secondary" id="exportCompanyOverview" type="button">Скачать общую сводку CSV</button>
 </div>
 <p class="muted" id="companyCompareStatus" role="status"></p>
+<p class="card" id="companyInsights" aria-live="polite">Загружаем вывод по выбранным периодам…</p>
 <div id="companyAspectComparison" class="tablewrap"></div>
 <h3>Сравнение опросов по периодам</h3>
 <p class="muted">Численность результатов за месяц показывается только при 5 и более отправках. Если данных меньше, вместо количества будет «—».</p>
@@ -116,7 +117,8 @@ function trendClass(delta,id){const threshold=id==="enps"?10:5;return delta>=thr
 function trendLabel(delta,id){const threshold=id==="enps"?10:5;return delta>=threshold?"Улучшилось":delta<=-threshold?"Ухудшилось":"Без заметных изменений";}
 function buildOverviewComparisons(overview,from,to){
  const list=overview?.monthly||[],old=list.find(x=>x.month===from),now=list.find(x=>x.month===to);
- if(!old||!now)return {rows:[],matchedQuestions:0,old,now};
+ if(!old||!now)return {rows:[],matchedQuestions:0,old,now,samePeriod:false};
+ if(from===to)return {rows:[],matchedQuestions:0,old,now,samePeriod:true};
  const oldQ=new Map((old.questions||[]).map(q=>[q.key,q])),newQ=new Map((now.questions||[]).map(q=>[q.key,q]));
  const matched=[...oldQ.keys()].filter(k=>newQ.has(k)&&oldQ.get(k)?.aspect===newQ.get(k)?.aspect);
  const rows=[];
@@ -136,10 +138,24 @@ function buildOverviewComparisons(overview,from,to){
   const previous=g.previous.reduce((a,b)=>a+b,0)/g.previous.length,current=g.current.reduce((a,b)=>a+b,0)/g.current.length;
   rows.push({id:g.id,label:g.label,previous:Number(previous.toFixed(1)),current:Number(current.toFixed(1)),delta:Number((current-previous).toFixed(1)),matchedQuestions:g.questionKeys.length});
  }
- if(old.enps?.score!==null&&old.enps?.score!==undefined&&now.enps?.score!==null&&now.enps?.score!==undefined){
-  rows.push({id:"enps",label:"eNPS",previous:old.enps.score,current:now.enps.score,delta:now.enps.score-old.enps.score,matchedQuestions:1});
+ const matchedRecommendationQuestions=matched.filter(key=>/recommend|recommendation|nps|порекоменд|рекомендовать|лояльност/i.test(String(oldQ.get(key)?.label||"")));
+ if(matchedRecommendationQuestions.length>0&&old.enps?.score!==null&&old.enps?.score!==undefined&&now.enps?.score!==null&&now.enps?.score!==undefined){
+  rows.push({id:"enps",label:"eNPS",previous:old.enps.score,current:now.enps.score,delta:now.enps.score-old.enps.score,matchedQuestions:matchedRecommendationQuestions.length});
  }
- return {rows,matchedQuestions:matched.length,old,now};
+ return {rows,matchedQuestions:matched.length,matchedRecommendationQuestions:matchedRecommendationQuestions.length,old,now,samePeriod:false};
+}
+function comparisonSummary(result){
+ if(result.samePeriod)return "Выберите два разных месяца, чтобы увидеть изменения.";
+ if(!result.old||!result.now)return "Нет данных для сравнения выбранных периодов.";
+ const meaningful=(result.rows||[]).filter(r=>r.id!=="mood");
+ const improved=meaningful.filter(r=>r.delta>=(r.id==="enps"?10:5)).sort((a,b)=>b.delta-a.delta);
+ const declined=meaningful.filter(r=>r.delta<=-(r.id==="enps"?10:5)).sort((a,b)=>a.delta-b.delta);
+ if(!meaningful.length)return "Недостаточно данных для сравнения. Нужны минимум 5 ответов на одинаковые вопросы в обоих месяцах. eNPS также сравнивается только при совпадении вопроса рекомендации.";
+ const bits=[];
+ if(improved.length)bits.push("Улучшилось: "+improved.slice(0,3).map(r=>r.label+" ("+(r.delta>0?"+":"")+r.delta+")").join("; ")+".");
+ if(declined.length)bits.push("Ухудшилось: "+declined.slice(0,3).map(r=>r.label+" ("+r.delta+")").join("; ")+".");
+ if(!bits.length)bits.push("Нет заметных изменений по сопоставимым показателям выбранных месяцев.");
+ return bits.join(" ");
 }
 function renderCompanyOverview(){
  const o=lastCompanyOverview;if(!o)return;
@@ -160,17 +176,18 @@ function renderCompanyOverview(){
   ["Индекс позитивных оценок",current.moodIndex===null||current.moodIndex===undefined?"—":Number(current.moodIndex).toFixed(1).replace(".",",")+"/100",current.moodIndex===null||current.moodIndex===undefined?"Недостаточно сопоставимых вопросов":"Вопросов с 5+ ответами: "+(current.eligibleQuestions??"—")],
   ["eNPS",current.enps?.score===null||current.enps?.score===undefined?"—":(current.enps.score>0?"+":"")+current.enps.score,"Нужны минимум 5 оценок по вопросу рекомендации"],
   ["Ответы в периоде",current.responses===null||current.responses===undefined?"—":current.responses,"Число отправок, не уникальных сотрудников"],
-  ["Сопоставимых вопросов",result.matchedQuestions,"Одинаковая формулировка и тип вопроса в обоих периодах"]
+  ["Сопоставимых вопросов",result.matchedQuestions?String(result.matchedQuestions):"—",result.matchedQuestions?"Одинаковая формулировка и тип вопроса в обоих периодах":"Недостаточно данных для сравнения"]
  ];
  gateById("companyMoodMetrics").innerHTML=cards.map(x=>'<div class="card company-metric"><span class="muted">'+escapeHtml(x[0])+'</span><strong>'+escapeHtml(x[1])+'</strong><span class="muted">'+escapeHtml(x[2])+'</span></div>').join("");
  const fmt=(v,id)=>v===null||v===undefined?"—":id==="enps"?((v>0?"+":"")+v):Number(v).toFixed(1).replace(".",",");
  if(result.rows.length){
   gateById("companyAspectComparison").innerHTML='<table><thead><tr><th>Аспект</th><th>'+escapeHtml(monthLabel(from))+'</th><th>'+escapeHtml(monthLabel(to))+'</th><th>Изменение</th><th>Вывод</th></tr></thead><tbody>'+result.rows.map(r=>'<tr><td>'+escapeHtml(r.label)+'</td><td>'+fmt(r.previous,r.id)+'</td><td>'+fmt(r.current,r.id)+'</td><td class="'+trendClass(r.delta,r.id)+'">'+(r.delta>0?"+":"")+fmt(r.delta,r.id)+'</td><td class="'+trendClass(r.delta,r.id)+'">'+trendLabel(r.delta,r.id)+'</td></tr>').join("")+'</tbody></table>';
-  gateById("companyCompareStatus").textContent="Сравниваются "+result.matchedQuestions+" одинаковых вопросов. Для индекса и аспектов прирост от 5 пунктов считается улучшением; eNPS меняется заметно при сдвиге от 10 пунктов.";
+  gateById("companyCompareStatus").textContent="Сравниваются "+result.matchedQuestions+" одинаковых вопросов. Улучшение аспекта — от +5 пунктов, ухудшение — от −5. Для eNPS порог изменения составляет 10 пунктов.";
  }else{
-  gateById("companyAspectComparison").innerHTML='<p class="muted">Нет данных для честного сравнения этих периодов.</p>';
-  gateById("companyCompareStatus").textContent="Чтобы выявить улучшения и ухудшения, нужно минимум 5 ответов на одинаковые вопросы в каждом периоде. За один из выбранных месяцев пока нет достаточных данных.";
+  gateById("companyAspectComparison").innerHTML='<p class="muted">'+escapeHtml(result.samePeriod?"Для сравнения выберите разные месяцы.":"Нет данных для честного сравнения этих периодов.")+'</p>';
+  gateById("companyCompareStatus").textContent="Для сравнения нужно минимум 5 ответов на одинаковые вопросы в каждом месяце. eNPS сравнивается только при совпадении вопроса рекомендации и достаточном числе оценок.";
  }
+ gateById("companyInsights").textContent=comparisonSummary(result);
  const cmpSurveys=(lastSurveyList||[]).map(s=>{
   const a=s.monthlyResponseCounts?.[from]??null,b=s.monthlyResponseCounts?.[to]??null;
   const ready=a!==null&&b!==null;
@@ -206,7 +223,7 @@ function exportCompanyComparison(){
  const from=gateById("compareMonthFrom").value,to=gateById("compareMonthTo").value;
  const o=lastCompanyOverview,result=buildOverviewComparisons(o,from,to);
  const fromData=result.old||{},toData=result.now||{};
- const lines=[["Отчёт","35 Health Clubs — общая аналитика компании"],["Дата формирования",new Date().toLocaleString("ru-RU")],["Период 1",monthLabel(from)],["Период 2",monthLabel(to)],["Индекс позитивных оценок — период 1",fromData.moodIndex??"Недостаточно данных"],["Индекс позитивных оценок — период 2",toData.moodIndex??"Недостаточно данных"],["eNPS — период 1",fromData.enps?.score??"Недостаточно данных"],["eNPS — период 2",toData.enps?.score??"Недостаточно данных"],[],["Аспект","Период 1","Период 2","Изменение","Вывод"],...result.rows.map(r=>[r.label,r.previous,r.current,(r.delta>0?"+":"")+r.delta,trendLabel(r.delta,r.id)]),[],["Опрос","Период 1: ответов","Период 2: ответов","Статус"],...(lastSurveyList||[]).map(s=>[s.title,s.monthlyResponseCounts?.[from]??"—",s.monthlyResponseCounts?.[to]??"—",(s.monthlyResponseCounts?.[from]!==null&&s.monthlyResponseCounts?.[from]!==undefined&&s.monthlyResponseCounts?.[to]!==null&&s.monthlyResponseCounts?.[to]!==undefined)?"Можно сравнивать":"Недостаточно данных"]) ];
+ const lines=[["Отчёт","35 Health Clubs — общая аналитика компании"],["Дата формирования",new Date().toLocaleString("ru-RU")],["Период 1",monthLabel(from)],["Период 2",monthLabel(to)],["Краткий вывод",comparisonSummary(result)],["Сопоставимых вопросов",result.matchedQuestions||"Недостаточно данных"],["Индекс позитивных оценок — период 1",fromData.moodIndex??"Недостаточно данных"],["Индекс позитивных оценок — период 2",toData.moodIndex??"Недостаточно данных"],["eNPS — период 1",fromData.enps?.score??"Недостаточно данных"],["eNPS — период 2",toData.enps?.score??"Недостаточно данных"],["Методология","Аспекты сравниваются по идентичным вопросам при минимум 5 ответах за период. eNPS сравнивается только при совпадении вопроса рекомендации."],[],["Аспект","Период 1","Период 2","Изменение","Вывод"],...result.rows.map(r=>[r.label,r.previous,r.current,(r.delta>0?"+":"")+r.delta,trendLabel(r.delta,r.id)]),[],["Опрос","Период 1: ответов","Период 2: ответов","Статус"],...(lastSurveyList||[]).map(s=>[s.title,s.monthlyResponseCounts?.[from]??"—",s.monthlyResponseCounts?.[to]??"—",(s.monthlyResponseCounts?.[from]!==null&&s.monthlyResponseCounts?.[from]!==undefined&&s.monthlyResponseCounts?.[to]!==null&&s.monthlyResponseCounts?.[to]!==undefined)?"Можно сравнивать":"Недостаточно данных"]) ];
  exportCsv(lines,"35HC-obshaya-analitika-"+from+"-"+to+".csv");
 }
 
