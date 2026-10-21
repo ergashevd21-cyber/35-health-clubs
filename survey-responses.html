@@ -13,7 +13,7 @@
 .responses-hero{padding:25px!important;background:linear-gradient(125deg,#55545b,#3d6261 55%,#147568)!important;color:#fff!important;border:0!important;border-radius:21px!important}
 .responses-hero h1{color:#fff!important;margin:0 0 8px}.responses-hero p{color:rgba(255,255,255,.86)!important;margin:0}
 .privacy-notice{padding:14px 16px;border:1px solid #d5e8e3;border-left:4px solid var(--hc-teal-strong);border-radius:0 12px 12px 0;background:#f3faf8;color:#4c5d5b;font-size:13px;line-height:1.55}
-.responses-toolbar{display:grid;grid-template-columns:minmax(230px,1fr) minmax(210px,.8fr) auto;gap:12px;align-items:end}
+.responses-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr) minmax(210px,.8fr) auto;gap:12px;align-items:end}
 .responses-toolbar label{display:block;min-width:0;font-size:12px;font-weight:750}
 .responses-toolbar select,.responses-toolbar input{margin-top:6px}
 .responses-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -38,7 +38,7 @@
 .history-meta{color:var(--hc-muted);font-size:12px}
 .status-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:#edf6f3;color:#1c6d55;font-size:11px;font-weight:800}
 .hidden,[hidden]{display:none!important}
-@media(max-width:820px){.responses-toolbar{grid-template-columns:1fr 1fr}.responses-toolbar label:first-child{grid-column:1/-1}.responses-list{grid-template-columns:1fr}}
+@media(max-width:960px){.responses-toolbar{grid-template-columns:1fr 1fr}.responses-toolbar label:first-child{grid-column:1/-1}.responses-list{grid-template-columns:1fr}}
 @media(max-width:600px){.responses-toolbar,.editor-grid{grid-template-columns:1fr}.responses-toolbar label:first-child{grid-column:auto}.response-meta{grid-template-columns:1fr 1fr}.editor-header{flex-direction:column}.response-card-actions button{flex:1 1 100%}}
 </style>
 </head>
@@ -72,6 +72,7 @@
 <section class="card" style="margin-top:16px">
 <div class="responses-toolbar">
 <label for="surveySelect">Выберите опрос<select id="surveySelect"><option value="">Загрузка…</option></select></label>
+<label for="runSelect">Отдельный запуск<select id="runSelect"><option value="">Выберите запуск…</option></select></label>
 <label for="responseSearch">Поиск по отправке<input id="responseSearch" type="search" placeholder="ID, имя (если указано), отдел"></label>
 <button id="reloadResponses" class="btn secondary" type="button">Обновить список</button>
 </div>
@@ -110,7 +111,8 @@ const PUBLIC_API_KEY="sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y";
 const ADMIN_API=SUPABASE_URL+"/functions/v1/hr-survey-admin";
 const client=window.supabase.createClient(SUPABASE_URL,PUBLIC_API_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
-let allSurveys=[],currentSurvey=null,questions=[],responses=[],currentResponse=null,currentUser=null;
+let allSurveys=[],currentSurvey=null,questions=[],responses=[],currentResponse=null,currentUser=null,allRuns=[],currentRun=null;
+let initialRunId=new URLSearchParams(location.search).get("run_id")||"";
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function show(id,value){$(id).classList.toggle("hidden",!value)}
@@ -149,13 +151,25 @@ async function boot(){
 }
 function setText(id,text){$(id).textContent=String(text??"")}
 async function loadResponses(){
- const id=$("surveySelect").value;if(!id){currentSurvey=null;responses=[];questions=[];renderResponses();return}
- show("editorCard",false);setText("listStatus","Загружаем ответы…");
+ const surveyId=$("surveySelect").value;
+ if(!surveyId){currentSurvey=null;currentRun=null;responses=[];questions=[];allRuns=[];$("runSelect").innerHTML='<option value="">Нет запусков</option>';renderResponses();return}
+ show("editorCard",false);setText("listStatus","Загружаем историю запусков…");
  try{
-  const data=await api("responses",{survey_id:id},"GET");
-  currentSurvey=data.survey;questions=data.questions||[];responses=data.responses||[];
-  setText("surveyDetails",(currentSurvey.is_anonymous?"Анонимный опрос. Имя не хранится. ":"Неанонимный опрос. ")+(data.identity_note||"")+" · "+({draft:"Черновик",active:"Активен",closed:"Завершён",archived:"Архив"}[currentSurvey.status]||currentSurvey.status));
-  setText("listStatus",responses.length?"Загрузка завершена.":"В этом опросе пока нет отправленных ответов.");
+  const runData=await api("runs",{survey_id:surveyId},"GET");
+  currentSurvey=runData.survey;allRuns=runData.runs||[];
+  const wanted=[...allRuns].some(r=>r.id===$("runSelect").value)?$("runSelect").value:
+    ([...allRuns].some(r=>r.id===initialRunId)?initialRunId:"");
+  currentRun=allRuns.find(r=>r.id===wanted)||allRuns.find(r=>r.status==="active")||allRuns[0]||null;
+  $("runSelect").innerHTML=allRuns.length?allRuns.map(r=>'<option value="'+esc(r.id)+'">Запуск '+esc(r.run_number)+' · '+(r.status==="active"?"активен":"завершён")+' · '+esc(r.response_count??0)+' ответов</option>').join(""):'<option value="">Нет запусков</option>';
+  $("runSelect").value=currentRun?.id||"";
+  if(!currentRun){questions=[];responses=[];setText("surveyDetails","Для этого опроса пока нет запусков.");renderResponses();return}
+  const responseData=await api("responses",{survey_id:surveyId,run_id:currentRun.id},"GET");
+  currentSurvey=responseData.survey;questions=responseData.questions||[];responses=responseData.responses||[];
+  const runInfo="Запуск "+currentRun.run_number+" · "+currentRun.title+" · "+(currentRun.status==="active"?"принимает ответы":"закрыт");
+  setText("surveyDetails",runInfo+" · "+(currentSurvey.is_anonymous?"Анонимный опрос. Имя не хранится. ":"Неанонимный опрос. ")+(responseData.identity_note||""));
+  setText("listStatus",responses.length?"Загрузка завершена.":"В этом запуске пока нет отправленных ответов.");
+  const url=new URL(location.href);url.searchParams.set("survey_id",surveyId);url.searchParams.set("run_id",currentRun.id);history.replaceState({},document.title,url.pathname+url.search);
+  initialRunId="";
   renderResponses();
  }catch(error){responses=[];renderResponses();msg("listStatus","Не удалось загрузить ответы: "+error.message,true)}
 }
@@ -259,6 +273,7 @@ async function loadHistory(){
  }catch(error){$("historyList").innerHTML='<p class="status error">Не удалось загрузить историю: '+esc(error.message)+'</p>'}
 }
 $("surveySelect").addEventListener("change",loadResponses);
+$("runSelect").addEventListener("change",loadResponses);
 $("responseSearch").addEventListener("input",renderResponses);
 $("reloadResponses").addEventListener("click",loadResponses);
 $("closeEditor").addEventListener("click",()=>{currentResponse=null;show("editorCard",false);renderResponses()});
