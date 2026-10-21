@@ -410,6 +410,8 @@ gateById("exportLiveSummary").onclick=()=>{
  const lines=[
   ["35 HEALTH CLUBS — ОТЧЁТ ПО ОПРОСУ"],["Дата формирования",new Date().toLocaleString("ru-RU")],
   ["Название опроса",d.selectedSurveyTitle||"Выбранный опрос"],
+  ["Запуск",d.selectedRunTitle||"Запуск не указан"],
+  ["ID запуска",d.selectedRunId||"—"],
   ["Статус конфиденциальности",d.suppressed?"Результаты скрыты: меньше 5 ответов":"Агрегированные показатели"],
   ["Ответов",d.suppressed?"Скрыто по порогу конфиденциальности":(d.totalResponses??"—")],[],
   ["1. ЛОЯЛЬНОСТЬ И eNPS"],["Показатель","Значение","Пояснение"],
@@ -428,7 +430,7 @@ gateById("exportLiveMonthly").onclick=()=>{
  const d=lastLiveData,months=d.monthlyStats||[];
  const lines=[
   ["35 HEALTH CLUBS — ДИНАМИКА ОПРОСА"],["Дата формирования",new Date().toLocaleString("ru-RU")],
-  ["Название опроса",d.selectedSurveyTitle||"Выбранный опрос"],[],
+  ["Название опроса",d.selectedSurveyTitle||"Выбранный опрос"],["Запуск",d.selectedRunTitle||"Запуск не указан"],["ID запуска",d.selectedRunId||"—"],[],
   ["1. ИЗМЕНЕНИЕ ПО МЕСЯЦАМ"],["Месяц","Количество ответов","eNPS","Количество оценок для eNPS","Комментарий"],
   ...months.map(m=>[monthLabel(m.month),m.responses??"—",m.enps?.score??"Недостаточно данных",m.enps?.responses??"—","Только агрегированные данные"]),
   ...(months.length?[]:[["Нет месяцев с достаточными данными","—","—","—","Для расчёта нужно минимум 5 ответов"]]),[],
