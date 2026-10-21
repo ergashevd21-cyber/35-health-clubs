@@ -46,6 +46,7 @@
 #companyAspectComparison table,#companySurveyComparison table,#companyMonthlyTrend table{min-width:560px}
 #companyAspectComparison td,#companySurveyComparison td,#companyMonthlyTrend td{font-size:13px}
 .trend-up{color:#14734f;font-weight:750}.trend-down{color:#b43e3e;font-weight:750}.trend-flat{color:var(--muted);font-weight:700}
+.aspect-score{padding:12px 0;border-bottom:1px solid #edf0eb}.aspect-score:last-child{border-bottom:0}.aspect-score-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline}.aspect-score-title{font-weight:750}.aspect-score-state{font-size:12px;color:var(--muted)}.aspect-score-state.attention{color:#b43e3e;font-weight:750}.aspect-score-state.strong{color:#14734f;font-weight:750}.aspect-score .bar{height:9px;margin-top:7px}
 @media(max-width:700px){#companyMoodMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.compare-arrow{display:none}.company-controls label{min-width:100%}}
 </style></head><body><main class="wrap"><header class="nav"><b class="brand brand-with-logo"><img class="brand-logo" src="https://static.tildacdn.one/tild3565-3438-4530-b765-303466353035/35HC_badge.png" alt="35 Health Clubs"><span class="brand-caption">HR ANALYTICS</span></b><div class="row"><a href="hr-home.html" class="muted">⌂ Главная HR-панель</a><a href="question-admin.html" class="muted">Конструктор</a><a href="access.html" class="muted">Доступы</a></div></header>
 <h1>Голос команды — аналитика</h1><p class="muted">Выберите опрос по теме и цели, чтобы посмотреть его результаты. Показатели загружаются из базы данных.</p>
@@ -56,6 +57,9 @@
 <h2>Общая аналитика по компании</h2>
 <p class="muted">Сводный обзор по опубликованным опросам за выбранный месяц. Сравнение аспектов использует одинаковые по смыслу вопросы. В расчёт входят только показатели с 5 и более ответами. Количество показывает отправки опросов, а не число уникальных сотрудников.</p>
 <div class="grid" id="companyMoodMetrics"></div>
+<h3>Состояние аспектов в выбранном периоде</h3>
+<p class="muted">Направления расположены от меньшей позитивной оценки к большей. «Зона внимания» — сигнал для проверки, а не доказательство причины проблемы.</p>
+<div id="companyCurrentAspects" aria-live="polite"></div>
 <div class="company-controls">
 <label for="compareMonthFrom">Период 1<select id="compareMonthFrom"></select></label>
 <span class="compare-arrow" aria-hidden="true">→</span>
@@ -179,6 +183,13 @@ function renderCompanyOverview(){
   ["Сопоставимых вопросов",result.matchedQuestions?String(result.matchedQuestions):"—",result.matchedQuestions?"Одинаковая формулировка и тип вопроса в обоих периодах":"Недостаточно данных для сравнения"]
  ];
  gateById("companyMoodMetrics").innerHTML=cards.map(x=>'<div class="card company-metric"><span class="muted">'+escapeHtml(x[0])+'</span><strong>'+escapeHtml(x[1])+'</strong><span class="muted">'+escapeHtml(x[2])+'</span></div>').join("");
+ const aspectRows=(current.aspects||[]).filter(a=>a.score!==null&&a.score!==undefined&&Number.isFinite(Number(a.score))).sort((a,b)=>Number(a.score)-Number(b.score));
+ gateById("companyCurrentAspects").innerHTML=aspectRows.length?aspectRows.map(a=>{
+  const score=Math.max(0,Math.min(100,Number(a.score)));
+  const state=score<60?"Зона внимания":score<75?"Есть потенциал улучшения":"Относительно сильная сторона";
+  const cls=score<60?"attention":score>=75?"strong":"";
+  return '<div class="aspect-score"><div class="aspect-score-head"><span class="aspect-score-title">'+escapeHtml(a.label)+'</span><span><b>'+score.toFixed(1).replace(".",",")+'/100</b> <span class="aspect-score-state '+cls+'">'+state+'</span></span></div><div class="muted">Основано на '+escapeHtml(a.responses??"неизвестном числе")+' ответах</div><div class="bar"><i style="width:'+score+'%"></i></div></div>';
+ }).join(""):'<p class="muted">За выбранный месяц пока нет аспектов с минимум 5 ответами. Когда накопится достаточно данных, здесь появятся сильные стороны и зоны внимания.</p>';
  const fmt=(v,id)=>v===null||v===undefined?"—":id==="enps"?((v>0?"+":"")+v):Number(v).toFixed(1).replace(".",",");
  if(result.rows.length){
   gateById("companyAspectComparison").innerHTML='<table><thead><tr><th>Аспект</th><th>'+escapeHtml(monthLabel(from))+'</th><th>'+escapeHtml(monthLabel(to))+'</th><th>Изменение</th><th>Вывод</th></tr></thead><tbody>'+result.rows.map(r=>'<tr><td>'+escapeHtml(r.label)+'</td><td>'+fmt(r.previous,r.id)+'</td><td>'+fmt(r.current,r.id)+'</td><td class="'+trendClass(r.delta,r.id)+'">'+(r.delta>0?"+":"")+fmt(r.delta,r.id)+'</td><td class="'+trendClass(r.delta,r.id)+'">'+trendLabel(r.delta,r.id)+'</td></tr>').join("")+'</tbody></table>';
@@ -223,7 +234,7 @@ function exportCompanyComparison(){
  const from=gateById("compareMonthFrom").value,to=gateById("compareMonthTo").value;
  const o=lastCompanyOverview,result=buildOverviewComparisons(o,from,to);
  const fromData=result.old||{},toData=result.now||{};
- const lines=[["Отчёт","35 Health Clubs — общая аналитика компании"],["Дата формирования",new Date().toLocaleString("ru-RU")],["Период 1",monthLabel(from)],["Период 2",monthLabel(to)],["Краткий вывод",comparisonSummary(result)],["Сопоставимых вопросов",result.matchedQuestions||"Недостаточно данных"],["Индекс позитивных оценок — период 1",fromData.moodIndex??"Недостаточно данных"],["Индекс позитивных оценок — период 2",toData.moodIndex??"Недостаточно данных"],["eNPS — период 1",fromData.enps?.score??"Недостаточно данных"],["eNPS — период 2",toData.enps?.score??"Недостаточно данных"],["Методология","Аспекты сравниваются по идентичным вопросам при минимум 5 ответах за период. eNPS сравнивается только при совпадении вопроса рекомендации."],[],["Аспект","Период 1","Период 2","Изменение","Вывод"],...result.rows.map(r=>[r.label,r.previous,r.current,(r.delta>0?"+":"")+r.delta,trendLabel(r.delta,r.id)]),[],["Опрос","Период 1: ответов","Период 2: ответов","Статус"],...(lastSurveyList||[]).map(s=>[s.title,s.monthlyResponseCounts?.[from]??"—",s.monthlyResponseCounts?.[to]??"—",(s.monthlyResponseCounts?.[from]!==null&&s.monthlyResponseCounts?.[from]!==undefined&&s.monthlyResponseCounts?.[to]!==null&&s.monthlyResponseCounts?.[to]!==undefined)?"Можно сравнивать":"Недостаточно данных"]) ];
+ const lines=[["Отчёт","35 Health Clubs — общая аналитика компании"],["Дата формирования",new Date().toLocaleString("ru-RU")],["Период 1",monthLabel(from)],["Период 2",monthLabel(to)],["Краткий вывод",comparisonSummary(result)],["Сопоставимых вопросов",result.matchedQuestions||"Недостаточно данных"],["Индекс позитивных оценок — период 1",fromData.moodIndex??"Недостаточно данных"],["Индекс позитивных оценок — период 2",toData.moodIndex??"Недостаточно данных"],["eNPS — период 1",fromData.enps?.score??"Недостаточно данных"],["eNPS — период 2",toData.enps?.score??"Недостаточно данных"],["Методология","Аспекты сравниваются по идентичным вопросам при минимум 5 ответах за период. eNPS сравнивается только при совпадении вопроса рекомендации."],[],["Текущие аспекты — "+monthLabel(from)],["Аспект","Оценка 0–100","Ответов"],...(fromData.aspects||[]).filter(a=>a.score!==null&&a.score!==undefined).map(a=>[a.label,a.score,a.responses??"—"]),[],["Текущие аспекты — "+monthLabel(to)],["Аспект","Оценка 0–100","Ответов"],...(toData.aspects||[]).filter(a=>a.score!==null&&a.score!==undefined).map(a=>[a.label,a.score,a.responses??"—"]),[],["Аспект","Период 1","Период 2","Изменение","Вывод"],...result.rows.map(r=>[r.label,r.previous,r.current,(r.delta>0?"+":"")+r.delta,trendLabel(r.delta,r.id)]),[],["Опрос","Период 1: ответов","Период 2: ответов","Статус"],...(lastSurveyList||[]).map(s=>[s.title,s.monthlyResponseCounts?.[from]??"—",s.monthlyResponseCounts?.[to]??"—",(s.monthlyResponseCounts?.[from]!==null&&s.monthlyResponseCounts?.[from]!==undefined&&s.monthlyResponseCounts?.[to]!==null&&s.monthlyResponseCounts?.[to]!==undefined)?"Можно сравнивать":"Недостаточно данных"]) ];
  exportCsv(lines,"35HC-obshaya-analitika-"+from+"-"+to+".csv");
 }
 
