@@ -105,7 +105,7 @@ function exportSelectedSurveyBeautifulHtml(){
   rMetric("Ответы",answerCount,"Число отправок выбранного опроса")+
   rMetric("eNPS",suppressed?"—":rEnps(score),"Сторонники 9–10 · критики 0–6")+
   rMetric("Вопросов в отчёте",suppressed?"—":String((d.questionStats||[]).length),"Показываются вопросы с минимум 5 ответами")+
-  rMetric("Период",monthLabel((new Date()).toISOString().slice(0,7)),"Дата формирования: "+new Date().toLocaleDateString("ru-RU"))+
+  rMetric("Запуск",String(d.selectedRunTitle||"Запуск не указан"),"Дата формирования: "+new Date().toLocaleDateString("ru-RU"))+
  "</div>";
  const qRows=(d.questionStats||[]).map(q=>[
   q.label,
@@ -131,9 +131,10 @@ function exportSelectedSurveyBeautifulHtml(){
  const actionSection=rSection("Рекомендации HR","Практические шаги для проверки, а не автоматические решения.",actionHtml);
  const confidentiality=rSection("Конфиденциальность","В отчёт не включаются ответы отдельных сотрудников и исходные комментарии.","<div class='method'><p>Порог публикации — минимум 5 ответов. Если данных недостаточно, показатель отображается как «—» или скрывается.</p><p>Результаты отражают только выбранный опрос и не должны автоматически распространяться на всю компанию.</p></div>");
  const body=cards+qTable+enSection+monthlySection+dailySection+topicSection+actionSection+confidentiality;
- const title="Отчёт по опросу: "+String(d.selectedSurveyTitle||"Выбранный опрос");
- const html=rFrame(title,"Отдельный отчёт по выбранному опросу. Сводные показатели, вопросы, динамика и рекомендации HR.",body,"Отчёт по опросу");
- rSave("35HC-HR-otchet-opros-"+new Date().toISOString().slice(0,10)+".html",html);
+ const runTitle=String(d.selectedRunTitle||"Запуск не указан");
+ const title="Отчёт по опросу: "+String(d.selectedSurveyTitle||"Выбранный опрос")+" — "+runTitle;
+ const html=rFrame(title,"Отдельный отчёт по выбранному опросу и конкретному запуску: "+runTitle+". Сводные показатели, вопросы, динамика и рекомендации HR.",body,"Отчёт по опросу");
+ rSave("35HC-HR-otchet-opros-"+String(d.selectedRunId||"run").slice(0,8)+"-"+new Date().toISOString().slice(0,10)+".html",html);
 }
 const companyButton=document.getElementById("exportCompanyHtml");
 if(companyButton)companyButton.addEventListener("click",exportCompanyBeautifulHtml);
