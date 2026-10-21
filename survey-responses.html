@@ -72,6 +72,7 @@
 <section class="card" style="margin-top:16px">
 <div class="responses-toolbar">
 <label for="surveySelect">Выберите опрос<select id="surveySelect"><option value="">Загрузка…</option></select></label>
+<label for="runSelect">Период / запуск<select id="runSelect"><option value="">Все ответы</option></select></label>
 <label for="responseSearch">Поиск по отправке<input id="responseSearch" type="search" placeholder="ID, имя (если указано), отдел"></label>
 <button id="reloadResponses" class="btn secondary" type="button">Обновить список</button>
 </div>
@@ -152,10 +153,15 @@ async function loadResponses(){
  const id=$("surveySelect").value;if(!id){currentSurvey=null;responses=[];questions=[];renderResponses();return}
  show("editorCard",false);setText("listStatus","Загружаем ответы…");
  try{
-  const data=await api("responses",{survey_id:id},"GET");
+  const runId=$("runSelect").value;
+  const data=await api("responses",{survey_id:id,...(runId?{run_id:runId}:{})},"GET");
   currentSurvey=data.survey;questions=data.questions||[];responses=data.responses||[];
+  const runs=data.runs||[];
+  const previous=$("runSelect").value;
+  $("runSelect").innerHTML='<option value="">Все ответы</option>'+runs.map(r=>'<option value="'+esc(r.id)+'">#'+esc(r.run_number)+' · '+esc(r.title||"Запуск "+r.run_number)+' · '+(r.status==="active"?"идёт":"завершён")+'</option>').join("");
+  if(previous&&runs.some(r=>r.id===previous))$("runSelect").value=previous;
   setText("surveyDetails",(currentSurvey.is_anonymous?"Анонимный опрос. Имя не хранится. ":"Неанонимный опрос. ")+(data.identity_note||"")+" · "+({draft:"Черновик",active:"Активен",closed:"Завершён",archived:"Архив"}[currentSurvey.status]||currentSurvey.status));
-  setText("listStatus",responses.length?"Загрузка завершена.":"В этом опросе пока нет отправленных ответов.");
+  setText("listStatus",responses.length?"Загрузка завершена.":"В этом запуске пока нет отправленных ответов.");
   renderResponses();
  }catch(error){responses=[];renderResponses();msg("listStatus","Не удалось загрузить ответы: "+error.message,true)}
 }
@@ -258,7 +264,7 @@ async function loadHistory(){
   }).join(""):'<p class="muted">История изменений пока пуста.</p>';
  }catch(error){$("historyList").innerHTML='<p class="status error">Не удалось загрузить историю: '+esc(error.message)+'</p>'}
 }
-$("surveySelect").addEventListener("change",loadResponses);
+$("surveySelect").addEventListener("change",()=>{$("runSelect").value="";loadResponses()});$("runSelect").addEventListener("change",loadResponses);
 $("responseSearch").addEventListener("input",renderResponses);
 $("reloadResponses").addEventListener("click",loadResponses);
 $("closeEditor").addEventListener("click",()=>{currentResponse=null;show("editorCard",false);renderResponses()});
