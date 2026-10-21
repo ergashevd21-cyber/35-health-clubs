@@ -10,7 +10,7 @@
 <section class="panel"><h2>Вывод для HR</h2><div id="summary"></div></section></section>
 </main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 "use strict";
-const SUPABASE_URL="https://mvpfqnkpojhakugohctn.supabase.co",SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12cGZxbmtwb2poYWt1Z29oY3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTYyMDAsImV4cCI6MjA3MjI5MjIwMH0.placeholder";
+const SUPABASE_URL="https://mvpfqnkpojhakugohctn.supabase.co",SUPABASE_ANON_KEY="sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y";
 const API=SUPABASE_URL+"/functions/v1/hr-survey-admin", $=id=>document.getElementById(id);
 const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
