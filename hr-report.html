@@ -65,7 +65,7 @@
 <label for="compareMonthFrom">Период 1<select id="compareMonthFrom"></select></label>
 <span class="compare-arrow" aria-hidden="true">→</span>
 <label for="compareMonthTo">Период 2<select id="compareMonthTo"></select></label>
-<button class="btn" id="exportCompanyHtml" type="button">Скачать красивый отчёт</button><button class="btn secondary" id="exportCompanyOverview" type="button">Скачать таблицу CSV</button>
+<button class="btn" id="exportCompanyHtml" type="button">Скачать красивый отчёт</button><button class="btn secondary" id="exportCompanyOverview" type="button">Скачать таблицу CSV</button></div><p class="muted">Отчёт HTML откроется в браузере. В нём нажмите «Печать / сохранить в PDF», чтобы получить PDF-файл.</p><div class="company-controls">
 </div>
 <p class="muted" id="companyCompareStatus" role="status"></p>
 <p class="card" id="companyInsights" aria-live="polite">Загружаем вывод по выбранным периодам…</p>
@@ -430,4 +430,5 @@ if(openLocal)openLocal.addEventListener("click",()=>window.open(location.pathnam
 })();
 </script>
 
+<script src="report-export.js"></script>
 </body></html>
