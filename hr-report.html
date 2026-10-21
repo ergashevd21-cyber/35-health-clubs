@@ -320,7 +320,8 @@ async function renderRunComparison(data){
    if(typeof a.average==="number"&&typeof b.average==="number")rows.push({label:a.label,metric:"Средняя оценка 0–10",old:a.average,current:b.average,delta:Number((b.average-a.average).toFixed(2)),lower:false});
    if(typeof a.negativePercent==="number"&&typeof b.negativePercent==="number")rows.push({label:a.label,metric:"Негативные ответы, %",old:a.negativePercent,current:b.negativePercent,delta:Number((b.negativePercent-a.negativePercent).toFixed(1)),lower:true});
   }
-  if(typeof old.enps?.score==="number"&&typeof data.enps?.score==="number")rows.push({label:"eNPS",metric:"Лояльность",old:old.enps.score,current:data.enps.score,delta:data.enps.score-old.enps.score,enps:true});
+  const sharedRecommendation=[...oldQ.entries()].some(([key,q])=>newQ.has(key)&&/recommend|recommendation|nps|порекоменд|рекомендовать|лояльност/i.test(String(q.label||"")));
+  if(sharedRecommendation&&typeof old.enps?.score==="number"&&typeof data.enps?.score==="number")rows.push({label:"eNPS",metric:"Лояльность",old:old.enps.score,current:data.enps.score,delta:data.enps.score-old.enps.score,enps:true});
   if(!rows.length){root.innerHTML='<p class="muted">Нет общих показателей с достаточным количеством ответов в обоих запусках.</p>';return}
   const outcome=r=>{const limit=r.enps?10:r.lower?5:.5;if(Math.abs(r.delta)<limit)return {text:"Без заметных изменений",cls:""};const good=r.lower?r.delta<0:r.delta>0;return {text:good?"Улучшилось":"Ухудшилось",cls:good?"run-compare-good":"run-compare-bad"}};
   const format=(n,r)=>r.enps?((n>0?"+":"")+n):Number(n).toFixed(1).replace(".",",");
@@ -350,8 +351,11 @@ async function loadLiveStats(){
     const audience=/хантер/.test(lower)?"Хантеры":/тренер/.test(lower)?"Тренеры":/промоут/.test(lower)?"Промоутеры":/hr|кадр/.test(lower)?"HR":s.audience_type==="all"?"Все сотрудники":"Сотрудники целевой группы";
     const purpose=({company_pulse:"Пульс команды и eNPS",adaptation:"Адаптация и обучение",manager_feedback:"Оценка руководства",training_feedback:"Оценка обучения",engagement:"Вовлечённость сотрудников",exit_interview:"Причины ухода"}[s.purpose])||(/адаптац|обучен/.test(lower)?"Адаптация и обучение":/руковод|менедж/.test(lower)?"Оценка руководства":/e?nps|рекоменд|лояль/.test(lower)?"Лояльность и eNPS":title);
     const count=s.responseCount===null?"недостаточно для сводки":String(s.responseCount);
+    const runCount=(s.runs||[]).length;
+    const runLabel=runCount+" "+(runCount===1?"запуск":runCount>=2&&runCount<=4?"запуска":"запусков");
+    const activeLabel=s.activeRun?" · сейчас: запуск "+s.activeRun.run_number:"";
     const isSelected=String(s.id)===filter.value;
-    return '<button type="button" class="survey-card" data-survey-id="'+escapeHtml(s.id)+'" aria-pressed="'+isSelected+'"><span class="survey-card-title">'+escapeHtml(title)+'</span><span class="survey-card-purpose">Цель: '+escapeHtml(purpose)+'</span><span class="survey-card-meta">Для кого: '+escapeHtml(audience)+'</span><span class="survey-card-status"><span class="survey-status-label">'+escapeHtml(s.status||"—")+'</span><span>Ответов: '+escapeHtml(count)+'</span></span><span class="survey-card-action">'+(isSelected?'Выбран · сводка открыта':'Открыть анализ')+'</span></button>';
+    return '<button type="button" class="survey-card" data-survey-id="'+escapeHtml(s.id)+'" aria-pressed="'+isSelected+'"><span class="survey-card-title">'+escapeHtml(title)+'</span><span class="survey-card-purpose">Цель: '+escapeHtml(purpose)+'</span><span class="survey-card-meta">Для кого: '+escapeHtml(audience)+'</span><span class="survey-card-meta">История: '+escapeHtml(runLabel+activeLabel)+'</span><span class="survey-card-status"><span class="survey-status-label">'+escapeHtml(s.status||"—")+'</span><span>Ответов: '+escapeHtml(count)+'</span></span><span class="survey-card-action">'+(isSelected?'Выбран · сводка открыта':'Открыть анализ')+'</span></button>';
    }).join(""):'<p class="muted">Пока нет опубликованных опросов.</p>';
   }
   const selected=Boolean(filter?.value),detail=gateById("surveyDetail");detail.classList.toggle("hidden",!selected);
