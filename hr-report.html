@@ -314,7 +314,7 @@ async function renderRunComparison(data){
   const response=await fetch("https://mvpfqnkpojhakugohctn.supabase.co/functions/v1/hr-public-summary?"+params.toString(),{headers:{apikey:"sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y"}});
   const old=await response.json().catch(()=>({}));if(!response.ok)throw new Error(old.error||"Не удалось загрузить предыдущий запуск.");
   if(data.suppressed||old.suppressed){root.innerHTML='<p class="muted">Сравнение скрыто. В каждом запуске нужно минимум 5 ответов.</p>';return}
-  const oldQ=new Map((old.questionStats||[]).map(q=>[String(q.id),q])),newQ=new Map((data.questionStats||[]).map(q=>[String(q.id),q])),rows=[];
+  const oldQ=new Map((old.questionStats||[]).map(q=>[String(q.label).trim().toLocaleLowerCase("ru-RU")+"::"+String(q.type),q])),newQ=new Map((data.questionStats||[]).map(q=>[String(q.label).trim().toLocaleLowerCase("ru-RU")+"::"+String(q.type),q])),rows=[];
   for(const [id,a] of oldQ.entries()){
    const b=newQ.get(id);if(!b)continue;
    if(typeof a.average==="number"&&typeof b.average==="number")rows.push({label:a.label,metric:"Средняя оценка 0–10",old:a.average,current:b.average,delta:Number((b.average-a.average).toFixed(2)),lower:false});
