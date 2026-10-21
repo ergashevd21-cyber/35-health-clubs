@@ -201,6 +201,9 @@ function answerDescriptors(){
 function controlFor(d,v,index){
  const id="answer_"+index, value=String(v??"");
  const common='id="'+id+'" data-answer-key="'+esc(d.key)+'"';
+ if(d.identity){
+  return '<input type="text" '+common+' value="'+esc(value)+'" minlength="3" maxlength="160" required autocomplete="off">';
+ }
  if(d.type==="text"||d.type==="textarea"||d.unknown){
   return '<textarea '+common+' rows="3">'+esc(value)+'</textarea>';
  }
