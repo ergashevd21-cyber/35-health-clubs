@@ -40,6 +40,13 @@
 button.danger{background:#fff!important;color:#963d3a!important;border:1px solid #e7c1be!important;box-shadow:none!important}button.danger:hover{background:#fff1f0!important;border-color:#d99d99!important}
 @media(max-width:760px){.survey-admin-row{display:flex;flex-direction:column;align-items:stretch}.survey-admin-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;flex:auto;justify-content:stretch}.survey-admin-actions button,.survey-admin-actions a{width:100%;min-width:0;max-width:100%;font-size:11px!important}.survey-admin-actions a{display:inline-flex}}
 </style>
+<style>
+.run-history{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.run-chip{display:inline-flex;align-items:center;max-width:100%;padding:4px 8px;border:1px solid var(--hc-line);border-radius:9px;background:#f6faf9;color:var(--hc-muted);font-size:11px;font-weight:700}
+.run-chip.run-active{border-color:#b9dfd3;background:#e9f6f0;color:#176b4f}
+.survey-admin-actions button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:760px){.run-history{width:100%}.survey-admin-info{width:100%}}
+</style>
 </head><body><main class="wrap">
 <header class="nav"><div class="brand-group"><img class="brand-logo" src="https://static.tildacdn.one/tild3565-3438-4530-b765-303466353035/35HC_badge.png" alt="35 Health Clubs"><div><div class="brand">Конструктор опросов</div><div class="muted">Создавайте отдельные опросы и собирайте для каждого свой набор вопросов</div></div></div><div class="row"><a class="btn secondary" href="hr-home.html">⌂ Главная HR-панель</a><a class="btn secondary" href="question-admin.html">Библиотека вопросов</a><a class="btn secondary" href="survey-responses.html">Ответы участников</a><a class="btn secondary" href="my-account.html">Личный кабинет</a></div></header>
 <section id="authCard" class="card"><h2>Вход в HR-систему</h2><p class="muted">Используйте единый вход 35 Health Clubs. Войдите по имени, фамилии и паролю. Доступ к этому разделу есть только у главного руководителя и HR-директора.</p><p><a class="button" href="access.html?next=survey-admin.html">Войти или зарегистрироваться</a></p><p id="authStatus" class="status" role="status"></p></section>
@@ -99,12 +106,34 @@ async function loadSurveys(){
 }
 function renderSurveys(){
  if(!surveys.length){$("surveyList").innerHTML='<p>Пока нет опросов. Нажмите «Создать опрос».</p>';return}
- $("surveyList").innerHTML=surveys.map(s=>'<article class="survey"><div class="row survey-admin-row"><div class="survey-admin-info"><h3>'+esc(s.title)+'</h3><p class="muted">'+esc(PURPOSES[s.purpose]||s.purpose)+' · '+esc(s.description||"Без описания")+'</p><span class="pill">'+({draft:"Черновик",active:"Активен",closed:"Завершён",archived:"Архив"}[s.status]||s.status)+'</span> <span class="pill">'+(s.is_anonymous?"Анонимный":"Не анонимный")+'</span> <span class="pill">Ответов: '+esc(s.response_count??0)+'</span></div><div class="row survey-admin-actions"><button data-edit-meta="'+s.id+'" class="secondary" type="button">Редактировать</button><button data-edit="'+s.id+'" class="secondary" type="button">Вопросы</button><a class="btn secondary" href="survey-responses.html?survey_id='+encodeURIComponent(s.id)+'">Ответы</a><button data-share="'+s.id+'" class="secondary" type="button">Поделиться</button><button data-status="'+s.id+'" class="secondary" type="button">'+(s.status==="active"?"Завершить":s.status==="archived"?"Архив":"Опубликовать")+'</button><button data-delete="'+s.id+'" class="danger" type="button">Удалить</button></div></div></article>').join("");
+ $("surveyList").innerHTML=surveys.map(s=>{
+  const active=s.active_run||null;
+  const runHistory=(s.runs||[]).slice(0,5).map(r=>'<span class="run-chip '+(r.status==="active"?"run-active":"")+'">Запуск '+esc(r.run_number)+' · '+(r.status==="active"?"идёт":"завершён")+' · '+esc(r.response_count??0)+' ответов</span>').join("");
+  return '<article class="survey"><div class="row survey-admin-row"><div class="survey-admin-info"><h3>'+esc(s.title)+'</h3><p class="muted">'+esc(PURPOSES[s.purpose]||s.purpose)+' · '+esc(s.description||"Без описания")+'</p><span class="pill">'+({draft:"Черновик",active:"Активен",closed:"Завершён",archived:"Архив"}[s.status]||s.status)+'</span> <span class="pill">'+(s.is_anonymous?"Анонимный":"Не анонимный")+'</span> <span class="pill">Всего ответов: '+esc(s.response_count??0)+'</span><div class="run-history">'+(runHistory||'<span class="muted">История запусков пока пуста</span>')+'</div></div><div class="row survey-admin-actions"><button data-edit-meta="'+s.id+'" class="secondary" type="button">Редактировать</button><button data-edit="'+s.id+'" class="secondary" type="button">Вопросы</button><a class="btn secondary" href="survey-responses.html?survey_id='+encodeURIComponent(s.id)+(active?'&run_id='+encodeURIComponent(active.id):'')+'">Ответы</a><button data-share="'+s.id+'" class="secondary" type="button" '+(!active?'disabled':'')+'>Поделиться</button>'+(s.status==="archived"?'<button class="secondary" type="button" disabled>Опрос в архиве</button>':'<button data-start-run="'+s.id+'" type="button">'+(active?"Запустить заново":"Запустить опрос")+'</button>')+(active?'<button data-close-run="'+active.id+'" class="secondary" type="button">Завершить запуск</button>':'')+'<button data-delete="'+s.id+'" class="danger" type="button">Удалить / архивировать</button></div></div></article>';
+ }).join("");
  $("surveyList").querySelectorAll("[data-edit-meta]").forEach(b=>b.onclick=()=>editSurveyMetadata(b.dataset.editMeta));
  $("surveyList").querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openSurvey(b.dataset.edit));
- $("surveyList").querySelectorAll("[data-share]").forEach(b=>b.onclick=async()=>{const s=surveys.find(x=>x.id===b.dataset.share);if(!s)return;if(s.status!=="active"){alert("Сначала опубликуйте опрос, затем поделитесь ссылкой.");return}const url=location.origin+"/take-survey.html?survey="+encodeURIComponent(s.id);try{await navigator.clipboard.writeText(url);b.textContent="Ссылка скопирована";setTimeout(()=>b.textContent="Поделиться",1800)}catch{prompt("Скопируйте ссылку для сотрудников:",url)}});
- $("surveyList").querySelectorAll("[data-status]").forEach(b=>b.onclick=()=>changeStatus(b.dataset.status));
+ $("surveyList").querySelectorAll("[data-share]").forEach(b=>b.onclick=async()=>{const s=surveys.find(x=>x.id===b.dataset.share);if(!s?.active_run){alert("Сначала запустите опрос.");return}const url=location.origin+"/take-survey.html?survey="+encodeURIComponent(s.id)+"&run="+encodeURIComponent(s.active_run.id);try{await navigator.clipboard.writeText(url);b.textContent="Ссылка скопирована";setTimeout(()=>b.textContent="Поделиться",1800)}catch{prompt("Скопируйте ссылку текущего запуска:",url)}});
+ $("surveyList").querySelectorAll("[data-start-run]").forEach(b=>b.onclick=()=>startSurveyRun(b.dataset.startRun));
+ $("surveyList").querySelectorAll("[data-close-run]").forEach(b=>b.onclick=()=>closeSurveyRun(b.dataset.closeRun));
  $("surveyList").querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>deleteSurvey(b.dataset.delete));
+}
+async function startSurveyRun(id){
+ const s=surveys.find(x=>x.id===id);if(!s)return;
+ const confirmMessage=s.active_run?"Текущий запуск будет закрыт. Уже полученные ответы останутся в старом запуске. Новый запуск будет иметь отдельные результаты. Продолжить?":"Создать новый запуск этого опроса? Его ответы будут храниться отдельно.";
+ if(!confirm(confirmMessage))return;
+ try{
+  const result=await adminApi("start_run",{survey_id:id});
+  await loadSurveys();
+  const url=new URL(result.url||("/take-survey.html?survey="+encodeURIComponent(id)+"&run="+encodeURIComponent(result.run.id)),location.origin).href;
+  let copied=false;try{await navigator.clipboard.writeText(url);copied=true}catch{}
+  alert((result.message||"Запуск создан.")+(copied?"\n\nНовая ссылка скопирована в буфер обмена.":"\n\nСсылка для сотрудников:\n"+url));
+ }catch(error){alert("Не удалось запустить опрос: "+error.message)}
+}
+async function closeSurveyRun(runId){
+ if(!confirm("Завершить этот запуск? Новые ответы по его ссылке больше не будут приниматься. Старые результаты сохранятся."))return;
+ try{const result=await adminApi("close_run",{run_id:runId});alert(result.message||"Запуск закрыт.");await loadSurveys()}
+ catch(error){alert("Не удалось завершить запуск: "+error.message)}
 }
 $("newSurvey").onclick=()=>{resetSurveyEditor();$("createCard").classList.remove("hidden");$("surveyTitle").focus()};$("cancelCreate").onclick=()=>{$("createCard").classList.add("hidden");resetSurveyEditor()};
 $("surveyAudience").onchange=()=>{$("deptWrap").classList.toggle("hidden",!["departments","custom"].includes($("surveyAudience").value));$("positionWrap").classList.toggle("hidden",!["positions","custom"].includes($("surveyAudience").value))};
@@ -177,13 +206,7 @@ function renderAssigned(){const list=questions.filter(q=>assigned.has(q.id));$("
 $("saveAssignments").onclick=async()=>{if(!currentSurvey)return;const checked=new Set(Array.from($("libraryList").querySelectorAll("input:checked")).map(x=>x.value));assigned=checked;const rows=Array.from(assigned).map((question_id,i)=>({survey_id:currentSurvey.id,question_id,sort_order:(i+1)*10}));$("saveAssignments").disabled=true;const del=await client.from("survey_question_items").delete().eq("survey_id",currentSurvey.id);if(del.error){$("saveAssignments").disabled=false;msg("assignmentStatus","Не удалось обновить список: "+del.error.message,true);return}if(rows.length){const ins=await client.from("survey_question_items").insert(rows);if(ins.error){$("saveAssignments").disabled=false;msg("assignmentStatus","Не удалось добавить вопросы: "+ins.error.message,true);return}}$("saveAssignments").disabled=false;msg("assignmentStatus","Набор вопросов сохранён. Эти вопросы закреплены только за выбранным опросом.");renderAssigned()};
 $("newQuestionType").onchange=()=>$("newOptionsWrap").classList.toggle("hidden",$("newQuestionType").value!=="choice");
 $("newQuestionForm").addEventListener("submit",async e=>{e.preventDefault();if(!currentSurvey){msg("newQuestionStatus","Сначала откройте опрос.",true);return}const text=$("newQuestionText").value.trim(),type=$("newQuestionType").value,options=type==="choice"?values("newQuestionOptions"):[];if(text.length<3){msg("newQuestionStatus","Введите текст вопроса.",true);return}if(type==="choice"&&options.length<2){msg("newQuestionStatus","Укажите минимум два варианта ответа.",true);return}const {data:{user}}=await client.auth.getUser();const {data,error}=await client.from("survey_custom_questions").insert({question_text:text,question_type:type,options,is_required:$("newQuestionRequired").checked,is_active:true,sort_order:100,created_by:user.id,question_scope:"targeted",target_departments:[],target_positions:[]}).select("id,question_text,question_type,options,is_required,is_active,question_scope,sort_order").single();if(error){msg("newQuestionStatus","Не удалось создать вопрос: "+error.message,true);return}questions.push(data);assigned.add(data.id);const {error:linkError}=await client.from("survey_question_items").insert({survey_id:currentSurvey.id,question_id:data.id,sort_order:assigned.size*10});if(linkError){msg("newQuestionStatus","Вопрос создан, но не удалось прикрепить к опросу: "+linkError.message,true);return}msg("newQuestionStatus","Вопрос создан и добавлен в этот опрос.");$("newQuestionForm").reset();$("newOptionsWrap").classList.add("hidden");renderLibrary();renderAssigned()});
-async function changeStatus(id){
- const s=surveys.find(x=>x.id===id);if(!s)return;
- if(s.status==="archived"){alert("Архивный опрос сохранён для истории. Создайте новый опрос, если нужен повторный запуск.");return}
- const next=s.status==="active"?"closed":"active";
- if(next==="active"){const {count,error}=await client.from("survey_question_items").select("*",{count:"exact",head:true}).eq("survey_id",id);if(error){alert(error.message);return}if(!count){alert("Добавьте хотя бы один вопрос перед публикацией.");return}}
- try{await adminApi("update_survey",{survey_id:id,fields:{status:next}});await loadSurveys()}
- catch(error){alert("Не удалось изменить статус: "+error.message)}
-}
+async function changeStatus(id){return startSurveyRun(id)}
+
 $("closeDetail").onclick=()=>$("detailCard").classList.add("hidden");
 </script></body></html>
