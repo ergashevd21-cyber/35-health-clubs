@@ -1,0 +1,6 @@
+-- Applied to dedicated Supabase project wspomgqzbsdkfiqsfcdw on 2026-10-21.
+-- This file records the initial schema. It is intentionally not a runnable second migration.
+-- Tables: staff_profiles, vacancies, candidates, applications, interviews,
+-- interview_events, reminder_rules, reminder_jobs, audit_logs.
+-- RLS is enabled on all tables; direct anon/authenticated table access is revoked.
+-- The authoritative applied migration is recorded in Supabase project history.
