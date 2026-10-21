@@ -33,14 +33,45 @@
 .survey-brand{display:flex;align-items:center;gap:12px;margin:0 0 18px;padding:0 0 14px;border-bottom:1px solid var(--line)}
 .survey-brand .brand-logo{width:154px;height:76px}
 @media(max-width:600px){.brand-logo{width:124px;height:64px}.survey-brand .brand-logo{width:124px;height:64px}.brand-group{gap:8px}.brand-caption{font-size:9px;letter-spacing:.6px}}
+
+/* Company-wide mood and period comparison */
+.company-overview{margin-top:18px}
+#companyMoodMetrics{grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0}
+.company-metric strong{font-size:clamp(22px,3vw,30px);line-height:1.15;overflow-wrap:anywhere}
+.company-metric .muted{display:block}
+.company-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:16px 0}
+.company-controls label{display:block;min-width:155px;flex:1;margin:0;font-size:12px;font-weight:700}
+.company-controls select{display:block;width:100%;max-width:100%;padding:10px;margin-top:6px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
+.compare-arrow{padding-bottom:10px;color:var(--muted)}
+#companyAspectComparison table,#companySurveyComparison table,#companyMonthlyTrend table{min-width:560px}
+#companyAspectComparison td,#companySurveyComparison td,#companyMonthlyTrend td{font-size:13px}
+.trend-up{color:#14734f;font-weight:750}.trend-down{color:#b43e3e;font-weight:750}.trend-flat{color:var(--muted);font-weight:700}
+@media(max-width:700px){#companyMoodMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.compare-arrow{display:none}.company-controls label{min-width:100%}}
 </style></head><body><main class="wrap"><header class="nav"><b class="brand brand-with-logo"><img class="brand-logo" src="https://static.tildacdn.one/tild3565-3438-4530-b765-303466353035/35HC_badge.png" alt="35 Health Clubs"><span class="brand-caption">HR ANALYTICS</span></b><div class="row"><a href="hr-home.html" class="muted">⌂ Главная HR-панель</a><a href="question-admin.html" class="muted">Конструктор</a><a href="access.html" class="muted">Доступы</a></div></header>
 <h1>Голос команды — аналитика</h1><p class="muted">Выберите опрос по теме и цели, чтобы посмотреть его результаты. Показатели загружаются из базы данных.</p>
 <div class="warning"><b>Конфиденциальность:</b> выгружайте данные только с разрешённым доступом. Не загружайте файл на общий компьютер. Публичная сводка не возвращает исходные ответы и отдельные комментарии. В ней доступны только агрегированные показатели; срезы и метрики для групп менее 5 ответов скрываются.</div>
 <section class="card"><div class="row" style="justify-content:space-between;align-items:center"><h3>Анализ загруженного отчёта</h3><button class="btn secondary" id="openLocalReport" type="button">Открыть анализ в отдельном окне</button></div><p class="muted">Загрузка файла и анализ локальных данных выполняются в отдельном окне. Основная страница предназначена для аналитики опросов из базы.</p><h3>Загрузить ответы</h3><p class="muted">Формат JSON (массив строк таблицы с полями <code>answers</code>, <code>submitted_at</code>) или CSV. Чтобы получить файл с ответами, используйте кнопку экспорта в разделе управления опросами.</p><div class="row"><input id="file" type="file" accept=".json,.csv,application/json,text/csv"><button class="btn secondary" id="demo">Демо-данные</button><button class="btn secondary" id="clear">Сбросить</button></div><p id="status" class="muted" role="status"></p></section>
 
-<section id="accessGate" class="card"><h2>HR-аналитика</h2><p class="muted">Список опросов и сводные результаты доступны без входа. Вход администратора нужен для защищённых функций.</p><details id="gateLogin" class="card"><summary style="cursor:pointer;font-weight:750">Вход администратора / защищённые функции</summary><label for="gateName">Имя и фамилия</label><input id="gateName" autocomplete="username" maxlength="100"><label for="gatePassword">Пароль</label><input id="gatePassword" type="password" autocomplete="current-password"><div class="row" style="margin-top:12px"><button class="btn" id="gateSignIn">Войти</button><a href="access.html" class="btn secondary">Регистрация / заявка на доступ</a></div></details><p id="gateStatus" class="muted" role="status"></p><div id="liveStats"><h3>Аналитика опросов</h3><p class="muted">Выберите опрос по теме и цели. Детальный отчёт откроется только после выбора. Основные аудитории: тренеры, хантеры, HR и промоутеры. Остальные сотрудники проходят общий опрос или отдельный опрос своей команды.</p><h3>Выберите опрос</h3><div id="surveyCards" class="grid" aria-live="polite"></div><label for="surveyFilter"><b>Или выберите из списка</b></label><select id="surveyFilter" style="display:block;width:100%;max-width:520px;padding:10px;margin:8px 0 16px;border:1px solid var(--line);border-radius:8px"><option value="">Выберите опрос…</option></select><div id="surveyDetail" class="hidden"><p id="liveCount"></p><div id="liveQuestionStats"></div><div class="grid" id="liveEnps"></div><section class="card"><h3>Сравнение по месяцам</h3><p class="muted">Сравнение количества ответов и eNPS по месяцам. Месяцы с менее чем 5 ответами не показываются.</p><div id="liveMonthly"></div></section><div class="panels"><section class="card"><h3>Динамика ответов</h3><p class="muted">Количество отправленных опросов по дням.</p><div id="liveTrend"></div></section><section class="card"><h3>Срез по отделам и должностям</h3><p class="muted">Показываются только группы с 5 и более ответами. Это снижает риск определения автора.</p><div id="liveSegments"></div></section></div><p class="muted" id="liveUpdated"></p><div class="row"><button class="btn secondary" id="refreshLive">Обновить сводку</button><button class="btn secondary" id="exportLiveSummary">Скачать показатели CSV</button><button class="btn secondary" id="exportLiveMonthly">Скачать динамику CSV</button><button class="btn secondary" id="gateSignOut">Выйти</button></div></div></div></section>
+<section id="accessGate" class="card"><h2>HR-аналитика</h2><p class="muted">Список опросов и сводные результаты доступны без входа. Вход администратора нужен для защищённых функций.</p><details id="gateLogin" class="card"><summary style="cursor:pointer;font-weight:750">Вход администратора / защищённые функции</summary><label for="gateName">Имя и фамилия</label><input id="gateName" autocomplete="username" maxlength="100"><label for="gatePassword">Пароль</label><input id="gatePassword" type="password" autocomplete="current-password"><div class="row" style="margin-top:12px"><button class="btn" id="gateSignIn">Войти</button><a href="access.html" class="btn secondary">Регистрация / заявка на доступ</a></div></details><p id="gateStatus" class="muted" role="status"></p><div id="liveStats"><h3>Аналитика опросов</h3><p class="muted">Ниже — общий настрой компании и сравнение периодов. Затем можно открыть отдельный опрос. Сырые ответы и комментарии в публичной аналитике не отображаются.</p><section class="card company-overview" id="companyOverview">
+<h2>Общая аналитика по компании</h2>
+<p class="muted">Сводный обзор по опубликованным опросам за выбранный месяц. Сравнение аспектов использует одинаковые по смыслу вопросы. В расчёт входят только показатели с 5 и более ответами. Количество показывает отправки опросов, а не число уникальных сотрудников.</p>
+<div class="grid" id="companyMoodMetrics"></div>
+<div class="company-controls">
+<label for="compareMonthFrom">Период 1<select id="compareMonthFrom"></select></label>
+<span class="compare-arrow" aria-hidden="true">→</span>
+<label for="compareMonthTo">Период 2<select id="compareMonthTo"></select></label>
+<button class="btn secondary" id="exportCompanyOverview" type="button">Скачать общую сводку CSV</button>
+</div>
+<p class="muted" id="companyCompareStatus" role="status"></p>
+<div id="companyAspectComparison" class="tablewrap"></div>
+<h3>Сравнение опросов по периодам</h3>
+<p class="muted">Численность результатов за месяц показывается только при 5 и более отправках. Если данных меньше, вместо количества будет «—».</p>
+<div id="companySurveyComparison" class="tablewrap"></div>
+<details class="card" id="companyMonthlyDetails"><summary style="cursor:pointer;font-weight:750">История общих показателей по месяцам</summary><div id="companyMonthlyTrend" class="tablewrap"></div></details>
+<p class="muted" id="companyOverviewNote"></p>
+</section><h3>Выберите опрос</h3><div id="surveyCards" class="grid" aria-live="polite"></div><label for="surveyFilter"><b>Или выберите из списка</b></label><select id="surveyFilter" style="display:block;width:100%;max-width:520px;padding:10px;margin:8px 0 16px;border:1px solid var(--line);border-radius:8px"><option value="">Выберите опрос…</option></select><details class="card" id="additionalAnalytics"><summary style="cursor:pointer;font-weight:800;font-size:18px">Дополнительная аналитика — открыть раздел</summary><p class="muted">Здесь собраны дополнительные показатели. Оценки обновляются по выбранному опросу, а темы открытых ответов показываются только при минимум 5 упоминаниях. Аналитика текучести использует отдельные кадровые CSV-файлы и не смешивается с анонимными ответами.</p><section class="card"><h3>Адаптация по стажу</h3><p class="muted">Сравнение оценок сотрудников по стажу. Группы отображаются только при наличии не менее 5 ответов.</p><div id="liveTenure"></div></section><section class="card"><h2>Аналитика текучести</h2><p class="muted">Отдельный импорт кадровой выгрузки — не смешивается с анонимными ответами опроса. CSV должен содержать столбцы: <code>department, position, hire_date, exit_date, exit_type, reason</code>. Даты — YYYY-MM-DD. Не добавляйте имена, телефоны и другие персональные данные.</p><div class="row"><input id="turnoverFile" type="file" accept=".csv,text/csv"><button class="btn secondary" id="turnoverTemplate" type="button">Скачать шаблон CSV</button><button class="btn secondary" id="turnoverClear" type="button">Сбросить кадровую выгрузку</button></div><p id="turnoverStatus" class="muted" role="status">Загрузите CSV с уволенными сотрудниками, чтобы рассчитать стаж до ухода и причины увольнения.</p><section class="card" aria-labelledby="turnoverQualityTitle"><h3 id="turnoverQualityTitle">Качество кадровых данных</h3><p class="muted">Проверка заполненности полей и дат. Строки с неполными данными не удаляются автоматически; некорректные даты исключаются из расчётов стажа и увольнений.</p><div id="turnoverQuality"><p class="muted">После импорта здесь появится проверка данных.</p></div></section><div class="grid" id="turnoverMetrics"></div><section class="card"><h3>Динамика увольнений по месяцам</h3><p class="muted">Количество увольнений по месяцу даты ухода. Для сравнения показателей текучести нужна численность сотрудников за каждый период.</p><div id="turnoverMonthly"></div><h4>Численность сотрудников по месяцам</h4><p class="muted">Загрузите CSV с колонками month, headcount_start, headcount_end для общей численности компании. Для сравнения текучести по отделам добавьте столбец department и укажите численность каждого отдела отдельно по месяцам. Можно загрузить только отделы или общую численность. Коэффициент = увольнения за месяц / средняя численность за месяц × 100. Данные только по численности, без имён.</p><div class="row"><input id="headcountFile" type="file" accept=".csv,text/csv"><button class="btn secondary" id="headcountTemplate" type="button">Скачать шаблон численности</button></div><div id="headcountStatus" class="muted">Численность не загружена. Коэффициент текучести пока не рассчитывается.</div><div id="turnoverRateMonthly"></div></section><div class="panels"><section class="card"><h3>Причины увольнения</h3><div id="turnoverReasons"></div></section><section class="card"><h3>Добровольные / недобровольные</h3><div id="turnoverTypes"></div></section></div><div class="panels"><section class="card"><h3>Стаж до увольнения</h3><div id="turnoverTenure"></div></section><section class="card"><h3>Увольнения по отделам и должностям</h3><div id="turnoverRoles"></div><h4>Сравнение отделов</h4><p class="muted">Выберите период для сравнения увольнений и среднего стажа до ухода. Если даты не заданы, показывается вся загруженная история. Коэффициенты текучести по месяцам рассчитаны отдельно выше.</p><div class="row"><label>С месяца <input id="turnoverPeriodStart" type="month"></label><label>По месяц <input id="turnoverPeriodEnd" type="month"></label><button class="btn secondary" id="turnoverPeriodReset" type="button">Весь период</button></div><p id="turnoverPeriodStatus" class="muted" role="status"></p><p><button class="btn secondary" id="turnoverDepartmentExport" type="button">Экспорт сравнения отделов CSV</button></p><div id="turnoverDepartmentCompare"></div></section></div></section><div class="panels"><section class="card"><h2>Негативные оценки</h2><p class="muted">«Плохо», «Нет» или 0–6 на числовой шкале. Пропущенные ответы не входят в расчёт.</p><div id="bars"></div></section><section class="card"><h2>Распределение ответов</h2><div id="distribution"></div></section></div><div class="panels"><section class="card"><h2>Темы открытых ответов</h2><p class="muted">Система группирует похожие формулировки по ключевым словам и оценивает общий тон по словарю. Это предварительный сигнал, не понимание контекста. Один ответ может относиться к нескольким темам.</p><div id="topics"></div><div id="openAnswerAnalysis"></div></section><section class="card"><h2>Рекомендации HR</h2><p class="muted">Гипотезы для проверки, не автоматические решения.</p><div id="actions"></div></section></div></details><div id="surveyDetail" class="hidden"><p id="liveCount"></p><div id="liveQuestionStats"></div><div class="grid" id="liveEnps"></div><section class="card"><h3>Сравнение по месяцам</h3><p class="muted">Сравнение количества ответов и eNPS по месяцам. Месяцы с менее чем 5 ответами не показываются.</p><div id="liveMonthly"></div></section><div class="panels"><section class="card"><h3>Динамика ответов</h3><p class="muted">Количество отправленных опросов по дням.</p><div id="liveTrend"></div></section><section class="card"><h3>Срез по отделам и должностям</h3><p class="muted">Показываются только группы с 5 и более ответами. Это снижает риск определения автора.</p><div id="liveSegments"></div></section></div><p class="muted" id="liveUpdated"></p><div class="row"><button class="btn secondary" id="refreshLive">Обновить сводку</button><button class="btn secondary" id="exportLiveSummary">Скачать показатели CSV</button><button class="btn secondary" id="exportLiveMonthly">Скачать динамику CSV</button><button class="btn secondary" id="gateSignOut">Выйти</button></div></div></div></section>
 
-<section id="report" class="hidden"><div class="grid" id="metrics"></div><details class="card" id="additionalAnalytics"><summary style="cursor:pointer;font-weight:800;font-size:18px">Дополнительная аналитика — открыть раздел</summary><p class="muted">Здесь собраны дополнительные показатели в одном месте. Аналитика по ответам обновляется после загрузки отчёта опроса. Адаптация по стажу появится только если в данных есть поле стажа. Текучесть не рассчитывается из анонимных ответов: для неё нужна отдельная кадровая CSV-выгрузка, а для процента текучести — ещё и отдельный файл численности сотрудников.</p><section class="card"><h3>Адаптация по стажу</h3><p class="muted">Сравнение оценок сотрудников по стажу. Группы отображаются только при наличии не менее 5 ответов.</p><div id="liveTenure"></div></section><section class="card"><h2>Аналитика текучести</h2><p class="muted">Отдельный импорт кадровой выгрузки — не смешивается с анонимными ответами опроса. CSV должен содержать столбцы: <code>department, position, hire_date, exit_date, exit_type, reason</code>. Даты — YYYY-MM-DD. Не добавляйте имена, телефоны и другие персональные данные.</p><div class="row"><input id="turnoverFile" type="file" accept=".csv,text/csv"><button class="btn secondary" id="turnoverTemplate" type="button">Скачать шаблон CSV</button><button class="btn secondary" id="turnoverClear" type="button">Сбросить кадровую выгрузку</button></div><p id="turnoverStatus" class="muted" role="status">Загрузите CSV с уволенными сотрудниками, чтобы рассчитать стаж до ухода и причины увольнения.</p><section class="card" aria-labelledby="turnoverQualityTitle"><h3 id="turnoverQualityTitle">Качество кадровых данных</h3><p class="muted">Проверка заполненности полей и дат. Строки с неполными данными не удаляются автоматически; некорректные даты исключаются из расчётов стажа и увольнений.</p><div id="turnoverQuality"><p class="muted">После импорта здесь появится проверка данных.</p></div></section><div class="grid" id="turnoverMetrics"></div><section class="card"><h3>Динамика увольнений по месяцам</h3><p class="muted">Количество увольнений по месяцу даты ухода. Для сравнения показателей текучести нужна численность сотрудников за каждый период.</p><div id="turnoverMonthly"></div><h4>Численность сотрудников по месяцам</h4><p class="muted">Загрузите CSV с колонками month, headcount_start, headcount_end для общей численности компании. Для сравнения текучести по отделам добавьте столбец department и укажите численность каждого отдела отдельно по месяцам. Можно загрузить только отделы или общую численность. Коэффициент = увольнения за месяц / средняя численность за месяц × 100. Данные только по численности, без имён.</p><div class="row"><input id="headcountFile" type="file" accept=".csv,text/csv"><button class="btn secondary" id="headcountTemplate" type="button">Скачать шаблон численности</button></div><div id="headcountStatus" class="muted">Численность не загружена. Коэффициент текучести пока не рассчитывается.</div><div id="turnoverRateMonthly"></div></section><div class="panels"><section class="card"><h3>Причины увольнения</h3><div id="turnoverReasons"></div></section><section class="card"><h3>Добровольные / недобровольные</h3><div id="turnoverTypes"></div></section></div><div class="panels"><section class="card"><h3>Стаж до увольнения</h3><div id="turnoverTenure"></div></section><section class="card"><h3>Увольнения по отделам и должностям</h3><div id="turnoverRoles"></div><h4>Сравнение отделов</h4><p class="muted">Выберите период для сравнения увольнений и среднего стажа до ухода. Если даты не заданы, показывается вся загруженная история. Коэффициенты текучести по месяцам рассчитаны отдельно выше.</p><div class="row"><label>С месяца <input id="turnoverPeriodStart" type="month"></label><label>По месяц <input id="turnoverPeriodEnd" type="month"></label><button class="btn secondary" id="turnoverPeriodReset" type="button">Весь период</button></div><p id="turnoverPeriodStatus" class="muted" role="status"></p><p><button class="btn secondary" id="turnoverDepartmentExport" type="button">Экспорт сравнения отделов CSV</button></p><div id="turnoverDepartmentCompare"></div></section></div></section><div class="panels"><section class="card"><h2>Негативные оценки</h2><p class="muted">«Плохо», «Нет» или 0–6 на числовой шкале. Пропущенные ответы не входят в расчёт.</p><div id="bars"></div></section><section class="card"><h2>Распределение ответов</h2><div id="distribution"></div></section></div><div class="panels"><section class="card"><h2>Темы открытых ответов</h2><p class="muted">Система группирует похожие формулировки по ключевым словам и оценивает общий тон по словарю. Это предварительный сигнал, не понимание контекста. Один ответ может относиться к нескольким темам.</p><div id="topics"></div><div id="openAnswerAnalysis"></div></section><section class="card"><h2>Рекомендации HR</h2><p class="muted">Гипотезы для проверки, не автоматические решения.</p><div id="actions"></div></section></div></details></section>
+<section id="report" class="hidden"><div class="grid" id="metrics"></div></section>
 </main><script>
 let Q=[["manager_access","Открытость руководителя","scale"],["processes","Рабочие процессы","choice"],["recommend","Рекомендация компании","scale"],["departments","Взаимодействие отделов","choice"],["manager_support","Поддержка руководителя","yesno"],["onboarding","Адаптация и обучение","choice"],["preparedness","Готовность после обучения","choice"],["belonging","Чувство команды","choice"],["training_improve","Что улучшить в обучении","text"],["tenure_intent","Планы по сроку работы","text"],["repulsion","Что отталкивает в компании","text"],["speak_up","Безопасность несогласия","choice"],["obstacles","Препятствия в работе","text"],["strategy_explained","Объяснение решений","choice"],["tools","Инструменты и условия","choice"],["pay_fairness","Справедливость оплаты","choice"],["pay_transparency","Прозрачность пересмотра зарплаты","choice"]];
 let TEXT=["training_improve","tenure_intent","repulsion","obstacles"];const WORDS=[["Руководство и коммуникация",["руковод","началь","диалог","решени","обратн","коммуникац"]],["Зарплата и вознаграждение",["зарплат","оплат","деньг","прем","доход"]],["Процессы и организация",["процесс","организац","задач","приоритет"]],["Обучение и адаптация",["обучен","адаптац","тренинг","настав"]],["Команда и атмосфера",["команд","коллег","атмосфер","конфликт","уважен"]],["Инструменты и условия",["оборудован","софт","инструмент","услов","техника"]],["Развитие и нагрузка",["рост","развити","карьер","нагруз","выгоран"]]];
@@ -77,7 +108,108 @@ const accessClient=window.supabase.createClient("https://mvpfqnkpojhakugohctn.su
 const gate=gateById("accessGate");let reportAccessGranted=false;
 const gateMsg=(s,err=false)=>{ gateById("gateStatus").textContent=s; gateById("gateStatus").className=err?"muted error":"muted"; };
 function hideReport(hide){const report=$("report");if(hide&&report)report.classList.add("hidden");document.querySelectorAll("main > h1, main > .muted, main > .warning").forEach(el=>el.classList.remove("hidden"));}
-let lastLiveData=null;
+let lastLiveData=null,lastCompanyOverview=null,lastSurveyList=[];
+const overviewAspectLabels={leadership:"Руководство и поддержка",processes:"Рабочие процессы и условия",collaboration:"Взаимодействие и команда",training:"Обучение и адаптация",engagement:"Вовлечённость",compensation:"Оплата и справедливость",loyalty:"Лояльность компании",other:"Другие вопросы"};
+function monthLabel(month){if(!month)return "—";const d=new Date(month+"-01T12:00:00Z");return d.toLocaleDateString("ru-RU",{month:"long",year:"numeric",timeZone:"UTC"}).replace(/^./,x=>x.toLocaleUpperCase("ru-RU"));}
+function scoreLabel(value,id){if(value===null||value===undefined||!Number.isFinite(Number(value)))return "—";const n=Number(value);return id==="enps"?((n>0?"+":"")+n):n.toFixed(1).replace(".",",")+"/100";}
+function trendClass(delta,id){const threshold=id==="enps"?10:5;return delta>=threshold?"trend-up":delta<=-threshold?"trend-down":"trend-flat";}
+function trendLabel(delta,id){const threshold=id==="enps"?10:5;return delta>=threshold?"Улучшилось":delta<=-threshold?"Ухудшилось":"Без заметных изменений";}
+function buildOverviewComparisons(overview,from,to){
+ const list=overview?.monthly||[],old=list.find(x=>x.month===from),now=list.find(x=>x.month===to);
+ if(!old||!now)return {rows:[],matchedQuestions:0,old,now};
+ const oldQ=new Map((old.questions||[]).map(q=>[q.key,q])),newQ=new Map((now.questions||[]).map(q=>[q.key,q]));
+ const matched=[...oldQ.keys()].filter(k=>newQ.has(k)&&oldQ.get(k)?.aspect===newQ.get(k)?.aspect);
+ const rows=[];
+ if(matched.length>=3){
+  const prev=matched.reduce((s,k)=>s+Number(oldQ.get(k).score),0)/matched.length;
+  const curr=matched.reduce((s,k)=>s+Number(newQ.get(k).score),0)/matched.length;
+  const delta=Number((curr-prev).toFixed(1));
+  rows.push({id:"mood",label:"Индекс позитивных оценок — одинаковые вопросы",previous:Number(prev.toFixed(1)),current:Number(curr.toFixed(1)),delta,matchedQuestions:matched.length});
+ }
+ const group=new Map();
+ for(const key of matched){
+  const a=oldQ.get(key),b=newQ.get(key),id=a.aspect||"other";
+  if(!group.has(id))group.set(id,{id,label:overviewAspectLabels[id]||"Другие вопросы",previous:[],current:[],questionKeys:[]});
+  const g=group.get(id);g.previous.push(Number(a.score));g.current.push(Number(b.score));g.questionKeys.push(key);
+ }
+ for(const g of group.values()){
+  const previous=g.previous.reduce((a,b)=>a+b,0)/g.previous.length,current=g.current.reduce((a,b)=>a+b,0)/g.current.length;
+  rows.push({id:g.id,label:g.label,previous:Number(previous.toFixed(1)),current:Number(current.toFixed(1)),delta:Number((current-previous).toFixed(1)),matchedQuestions:g.questionKeys.length});
+ }
+ if(old.enps?.score!==null&&old.enps?.score!==undefined&&now.enps?.score!==null&&now.enps?.score!==undefined){
+  rows.push({id:"enps",label:"eNPS",previous:old.enps.score,current:now.enps.score,delta:now.enps.score-old.enps.score,matchedQuestions:1});
+ }
+ return {rows,matchedQuestions:matched.length,old,now};
+}
+function renderCompanyOverview(){
+ const o=lastCompanyOverview;if(!o)return;
+ const fromEl=gateById("compareMonthFrom"),toEl=gateById("compareMonthTo");
+ if(!fromEl||!toEl)return;
+ const months=o.months||[];
+ const optionHtml=months.map(m=>'<option value="'+escapeHtml(m)+'">'+escapeHtml(monthLabel(m))+'</option>').join("");
+ const existingFrom=fromEl.value,existingTo=toEl.value;
+ if(fromEl.options.length!==months.length||[...fromEl.options].map(x=>x.value).join("|")!==months.join("|")){
+  fromEl.innerHTML=optionHtml;toEl.innerHTML=optionHtml;
+ }
+ fromEl.value=months.includes(existingFrom)?existingFrom:(o.previousMonth||months[months.length-2]||"");
+ toEl.value=months.includes(existingTo)?existingTo:(o.currentMonth||months[months.length-1]||"");
+ const from=fromEl.value,to=toEl.value;
+ const result=buildOverviewComparisons(o,from,to);
+ const current=result.now||o.current||{},previous=result.old||o.previous||{};
+ const cards=[
+  ["Индекс позитивных оценок",current.moodIndex===null||current.moodIndex===undefined?"—":Number(current.moodIndex).toFixed(1).replace(".",",")+"/100",current.moodIndex===null||current.moodIndex===undefined?"Недостаточно сопоставимых вопросов":"Вопросов с 5+ ответами: "+(current.eligibleQuestions??"—")],
+  ["eNPS",current.enps?.score===null||current.enps?.score===undefined?"—":(current.enps.score>0?"+":"")+current.enps.score,"Нужны минимум 5 оценок по вопросу рекомендации"],
+  ["Ответы в периоде",current.responses===null||current.responses===undefined?"—":current.responses,"Число отправок, не уникальных сотрудников"],
+  ["Сопоставимых вопросов",result.matchedQuestions,"Одинаковая формулировка и тип вопроса в обоих периодах"]
+ ];
+ gateById("companyMoodMetrics").innerHTML=cards.map(x=>'<div class="card company-metric"><span class="muted">'+escapeHtml(x[0])+'</span><strong>'+escapeHtml(x[1])+'</strong><span class="muted">'+escapeHtml(x[2])+'</span></div>').join("");
+ const fmt=(v,id)=>v===null||v===undefined?"—":id==="enps"?((v>0?"+":"")+v):Number(v).toFixed(1).replace(".",",");
+ if(result.rows.length){
+  gateById("companyAspectComparison").innerHTML='<table><thead><tr><th>Аспект</th><th>'+escapeHtml(monthLabel(from))+'</th><th>'+escapeHtml(monthLabel(to))+'</th><th>Изменение</th><th>Вывод</th></tr></thead><tbody>'+result.rows.map(r=>'<tr><td>'+escapeHtml(r.label)+'</td><td>'+fmt(r.previous,r.id)+'</td><td>'+fmt(r.current,r.id)+'</td><td class="'+trendClass(r.delta,r.id)+'">'+(r.delta>0?"+":"")+fmt(r.delta,r.id)+'</td><td class="'+trendClass(r.delta,r.id)+'">'+trendLabel(r.delta,r.id)+'</td></tr>').join("")+'</tbody></table>';
+  gateById("companyCompareStatus").textContent="Сравниваются "+result.matchedQuestions+" одинаковых вопросов. Для индекса и аспектов прирост от 5 пунктов считается улучшением; eNPS меняется заметно при сдвиге от 10 пунктов.";
+ }else{
+  gateById("companyAspectComparison").innerHTML='<p class="muted">Нет данных для честного сравнения этих периодов.</p>';
+  gateById("companyCompareStatus").textContent="Чтобы выявить улучшения и ухудшения, нужно минимум 5 ответов на одинаковые вопросы в каждом периоде. За один из выбранных месяцев пока нет достаточных данных.";
+ }
+ const cmpSurveys=(lastSurveyList||[]).map(s=>{
+  const a=s.monthlyResponseCounts?.[from]??null,b=s.monthlyResponseCounts?.[to]??null;
+  const ready=a!==null&&b!==null;
+  return {title:s.title,previous:a,current:b,status:ready?"Есть данные для сравнения":"Недостаточно данных в одном из периодов"};
+ });
+ gateById("companySurveyComparison").innerHTML=cmpSurveys.length?'<table><thead><tr><th>Опрос</th><th>'+escapeHtml(monthLabel(from))+'</th><th>'+escapeHtml(monthLabel(to))+'</th><th>Статус</th></tr></thead><tbody>'+cmpSurveys.map(s=>'<tr><td>'+escapeHtml(s.title)+'</td><td>'+escapeHtml(s.previous===null?"—":String(s.previous))+'</td><td>'+escapeHtml(s.current===null?"—":String(s.current))+'</td><td>'+escapeHtml(s.status)+'</td></tr>').join("")+'</tbody></table>':'<p class="muted">Нет опубликованных опросов.</p>';
+ const monthly=(o.monthly||[]).filter(m=>m.responses!==null&&m.responses!==undefined||m.moodIndex!==null&&m.moodIndex!==undefined||m.enps?.score!==null&&m.enps?.score!==undefined);
+ gateById("companyMonthlyTrend").innerHTML=monthly.length?'<table><thead><tr><th>Месяц</th><th>Ответы</th><th>Индекс позитивных оценок</th><th>eNPS</th><th>Вопросов с 5+ ответами</th></tr></thead><tbody>'+monthly.map(m=>'<tr><td>'+escapeHtml(monthLabel(m.month))+'</td><td>'+escapeHtml(m.responses??"—")+'</td><td>'+escapeHtml(m.moodIndex===null||m.moodIndex===undefined?"—":Number(m.moodIndex).toFixed(1).replace(".",",")+"/100")+'</td><td>'+escapeHtml(m.enps?.score===null||m.enps?.score===undefined?"—":(m.enps.score>0?"+":"")+m.enps.score)+'</td><td>'+escapeHtml(m.eligibleQuestions??0)+'</td></tr>').join("")+'</tbody></table>':'<p class="muted">Пока нет месяцев с достаточными данными.</p>';
+ gateById("companyOverviewNote").textContent=(o.definition||"Индекс настроения является ориентиром, а не валидированным психологическим тестом.")+" "+(o.note||"Сравнение допускается только по одинаковым вопросам и при наличии не менее 5 ответов.");
+}
+function renderAdditionalAnalytics(data,selected){
+ const overview=data?.companyOverview||lastCompanyOverview;
+ const monthlyCurrent=overview?.current||{};
+ const stats=selected?(data?.questionStats||[]):(monthlyCurrent.questions||[]);
+ const neg=stats.filter(q=>q.negativePercent!==null&&q.negativePercent!==undefined);
+ gateById("bars").innerHTML=neg.length?neg.map(q=>'<div class="barrow"><div class="row" style="justify-content:space-between"><span>'+escapeHtml(q.label)+'</span><b>'+Number(q.negativePercent).toFixed(1).replace(".",",")+'%</b></div><div class="bar"><i style="width:'+Math.min(100,Math.max(0,Number(q.negativePercent)))+'%"></i></div></div>').join(""):'<p class="muted">Нет вопросов, для которых можно безопасно рассчитать долю негативных оценок. Нужно минимум 5 классифицированных ответов.</p>';
+ gateById("distribution").innerHTML='<p class="muted">Распределение по отдельным вариантам не публикуется в открытой сводке, чтобы не раскрывать редкие ответы. Доступны безопасные агрегаты и доля негативных оценок.</p>';
+ const topics=selected?(data?.openAnswerTopics||[]):(monthlyCurrent.topics||data?.openAnswerTopics||[]);
+ gateById("topics").innerHTML=topics.length?topics.map(t=>'<div class="line"><b>'+escapeHtml(t.label)+'</b><div class="muted">Упоминаний в ответах: '+t.responses+'</div></div>').join(""):'<p class="muted">Пока нет тем с 5 и более упоминаниями. Отдельные комментарии не показываются.</p>';
+ gateById("openAnswerAnalysis").textContent="Темы считаются по ключевым словам. Один ответ может относиться к нескольким темам; формулировки сотрудников не публикуются.";
+ const suggestions=[];
+ const aspectMap=new Map((monthlyCurrent.aspects||[]).filter(a=>a.score!==null&&a.score!==undefined).map(a=>[a.id,a]));
+ const advice={leadership:"Провести короткие встречи с руководителями и проверить регулярность обратной связи.",processes:"Выбрать 2–3 главных препятствия в рабочих процессах, назначить ответственных и сроки исправления.",collaboration:"Проверить передачу задач между отделами и согласовать правила взаимодействия.",training:"Проверить программу обучения и адаптации, а затем измерить готовность сотрудников после обучения.",engagement:"Провести короткую встречу с командой и выбрать одну инициативу для повышения вовлечённости.",compensation:"Проверить прозрачность правил оплаты, бонусов и пересмотра вознаграждения.",loyalty:"Уточнить причины низких оценок рекомендации и повторить замер после улучшений.",other:"Проверить содержание вопросов с низкими оценками и уточнить основную причину."};
+ for(const a of aspectMap.values())if(Number(a.score)<65)suggestions.push({label:a.label,body:advice[a.id]||advice.other});
+ for(const q of stats)if(q.negativePercent!==null&&q.negativePercent!==undefined&&Number(q.negativePercent)>=25)suggestions.push({label:q.label,body:"Разобрать причины негативных оценок по этому вопросу и согласовать одно конкретное улучшение."});
+ const unique=[...new Map(suggestions.map(s=>[s.label,s])).values()].slice(0,5);
+ gateById("actions").innerHTML=unique.length?unique.map((s,i)=>'<div class="line"><b>'+(i+1)+'. '+escapeHtml(s.label)+'</b><div class="muted">'+escapeHtml(s.body)+'</div></div>').join(""):'<p class="muted">Явных слабых аспектов по доступным данным нет. Продолжайте регулярный замер и проверяйте результат после следующих изменений.</p>';
+ const tenure=data?.tenureStats||[];
+ gateById("liveTenure").innerHTML=tenure.length?tenure.map(t=>'<div class="line"><b>'+escapeHtml(t.name)+'</b><div class="muted">Ответов: '+t.responses+' · Средняя оценка: '+Number(t.managerAverage).toFixed(1).replace(".",",")+'/10</div></div>').join(""):'<p class="muted">Нет групп стажа с 5 и более ответами. Данные по стажу скрываются, если группа меньше порога конфиденциальности.</p>';
+}
+function exportCompanyComparison(){
+ if(!lastCompanyOverview){gateMsg("Общая аналитика ещё не загрузилась.",true);return}
+ const from=gateById("compareMonthFrom").value,to=gateById("compareMonthTo").value;
+ const o=lastCompanyOverview,result=buildOverviewComparisons(o,from,to);
+ const fromData=result.old||{},toData=result.now||{};
+ const lines=[["Отчёт","35 Health Clubs — общая аналитика компании"],["Дата формирования",new Date().toLocaleString("ru-RU")],["Период 1",monthLabel(from)],["Период 2",monthLabel(to)],["Индекс позитивных оценок — период 1",fromData.moodIndex??"Недостаточно данных"],["Индекс позитивных оценок — период 2",toData.moodIndex??"Недостаточно данных"],["eNPS — период 1",fromData.enps?.score??"Недостаточно данных"],["eNPS — период 2",toData.enps?.score??"Недостаточно данных"],[],["Аспект","Период 1","Период 2","Изменение","Вывод"],...result.rows.map(r=>[r.label,r.previous,r.current,(r.delta>0?"+":"")+r.delta,trendLabel(r.delta,r.id)]),[],["Опрос","Период 1: ответов","Период 2: ответов","Статус"],...(lastSurveyList||[]).map(s=>[s.title,s.monthlyResponseCounts?.[from]??"—",s.monthlyResponseCounts?.[to]??"—",(s.monthlyResponseCounts?.[from]!==null&&s.monthlyResponseCounts?.[from]!==undefined&&s.monthlyResponseCounts?.[to]!==null&&s.monthlyResponseCounts?.[to]!==undefined)?"Можно сравнивать":"Недостаточно данных"]) ];
+ exportCsv(lines,"35HC-obshaya-analitika-"+from+"-"+to+".csv");
+}
+
 async function loadLiveStats(){
  hideReport(true);gate.classList.remove("hidden");gateById("liveStats").classList.remove("hidden");gateMsg("Загружаем безопасную сводку…");
  try{
@@ -86,7 +218,7 @@ async function loadLiveStats(){
   const filter=gateById("surveyFilter"),selectedSurveyId=filter?.value||"";
   const url="https://mvpfqnkpojhakugohctn.supabase.co/functions/v1/hr-public-summary"+(selectedSurveyId?"?survey_id="+encodeURIComponent(selectedSurveyId):"");
   const res=await fetch(url,{headers:{apikey:"sb_publishable_xFzUoeSo-oNXfB4NCn8m-w_2PQV0k9Y"}});
-  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||"Не удалось загрузить сводку.");lastLiveData=data;
+  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||"Не удалось загрузить сводку.");lastLiveData=data;if(data.companyOverview)lastCompanyOverview=data.companyOverview;if(Array.isArray(data.surveys))lastSurveyList=data.surveys;
   if(filter&&Array.isArray(data.surveys)){
    const prev=selectedSurveyId;
    filter.innerHTML='<option value="">Выберите опрос…</option>'+data.surveys.map(s=>'<option value="'+escapeHtml(s.id)+'">'+escapeHtml(s.title)+' · '+escapeHtml(s.status||"опубликован")+'</option>').join("");
@@ -102,7 +234,7 @@ async function loadLiveStats(){
   const selected=Boolean(filter?.value),detail=gateById("surveyDetail");detail.classList.toggle("hidden",!selected);
   if(!selected){
    gateById("liveCount").textContent="Выберите опрос, чтобы открыть его сводные показатели.";
-   ["liveQuestionStats","liveEnps","liveMonthly","liveTrend","liveSegments","liveTenure"].forEach(id=>gateById(id).innerHTML="");
+   ["liveQuestionStats","liveEnps","liveMonthly","liveTrend","liveSegments"].forEach(id=>gateById(id).innerHTML="");
   }else{
    const title=data.selectedSurveyTitle||"Выбранный опрос";
    const count=data.suppressed?"недостаточно ответов — данные скрыты":String(data.totalResponses??"—");
@@ -124,6 +256,7 @@ async function loadLiveStats(){
    gateById("liveSegments").innerHTML='<p class="muted">Срезы по отделам и должностям не публикуются в открытой сводке.</p>';
    gateById("liveTenure").innerHTML='<p class="muted">Срез по стажу не публикуется в открытой сводке.</p>';
   }
+  renderCompanyOverview();renderAdditionalAnalytics(data,Boolean(filter?.value));
   gateById("liveUpdated").textContent="Обновлено: "+new Date(data.generatedAt||Date.now()).toLocaleString("ru-RU");
   if(data.suppressed)gateMsg(data.suppressionMessage||"Результаты скрыты до накопления 5 ответов.");
   else gateMsg(reportAccessGranted?"Вход администратора активен. Публичная сводка обновлена.":"Публичная сводка доступна. Исходные ответы и комментарии не публикуются.");
@@ -142,6 +275,9 @@ gateById("gateSignIn").onclick=async()=>{gateMsg("Выполняется вхо�
 gateById("refreshLive").onclick=loadLiveStats;
 gateById("surveyFilter").onchange=loadLiveStats;
 gateById("surveyCards").addEventListener("click",event=>{const card=event.target.closest("[data-survey-id]");if(!card)return;gateById("surveyFilter").value=card.dataset.surveyId;loadLiveStats()});
+gateById("compareMonthFrom").addEventListener("change",renderCompanyOverview);
+gateById("compareMonthTo").addEventListener("change",renderCompanyOverview);
+gateById("exportCompanyOverview").onclick=exportCompanyComparison;
 gateById("exportLiveSummary").onclick=()=>{
  if(!lastLiveData?.selectedSurveyId){gateMsg("Сначала выберите опрос.",true);return}
  const d=lastLiveData;
@@ -161,9 +297,11 @@ if(localReportMode){
  reportAccessGranted=true;
  gate.classList.add("hidden");
  document.querySelectorAll("main > h1, main > .muted, main > .warning").forEach(el=>el.classList.add("hidden"));
- const live=gateById("liveStats"); if(live) live.classList.add("hidden");
+ const live=gateById("liveStats"), report=gateById("report");
+ const extra=gateById("additionalAnalytics"); if(extra&&report)report.appendChild(extra);
+ if(live) live.classList.add("hidden");
  const upload=document.querySelector('input#file')?.closest("section.card"); if(upload) upload.classList.remove("hidden");
- gateById("report").classList.remove("hidden");
+ report.classList.remove("hidden");
  gateById("status").textContent="Загрузите CSV или JSON. Анализ выполняется только в этом окне.";
 }else{checkGate();}
 const openLocal=gateById("openLocalReport");
