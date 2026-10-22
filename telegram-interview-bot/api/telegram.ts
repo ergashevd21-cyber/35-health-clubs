@@ -148,9 +148,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const date = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'long', timeStyle: 'short' }).format(new Date(interview.scheduled_at));
         if (!isComing) {
-          const hrIds = hrAdminIds.split(',').map(value => value.trim()).filter(value => /^\\d+$/.test(value));
+          const hrIds = hrAdminIds.split(',').map(value => value.trim()).filter(value => /^\d+$/.test(value));
           for (const hrId of hrIds) {
-            await sendTo(hrId, `Кандидат сообщил, что не сможет прийти на собеседование.\\nКандидат: ${candidate.full_name}\\nВремя: ${date} (Ташкент).\\nПроверьте запись в HR-панели.`);
+            await sendTo(hrId, `Кандидат сообщил, что не сможет прийти на собеседование.\nКандидат: ${candidate.full_name}\nВремя: ${date} (Ташкент).\nПроверьте запись в HR-панели.`);
           }
           await send('Спасибо, что предупредили. Я уведомил HR — пожалуйста, свяжитесь с отделом HR, чтобы согласовать дальнейшие действия.');
         } else {
@@ -276,11 +276,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (candidate?.telegram_chat_id) {
           const date = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'long', timeStyle: 'short' }).format(new Date(interview.scheduled_at));
           await sendTo(candidate.telegram_chat_id,
-            `Здравствуйте, ${candidate.full_name}! Ваша запись на собеседование в 35 Health Clubs ПОДТВЕРЖДЕНА.\\n\\nВакансия: ${vacancy?.title ?? 'уточняется'}.\\nДата и время: ${date} (Ташкент).\\n\\nНапоминания придут за 3 часа до собеседования и за 1 час до начала. В сообщении за 1 час попросим подтвердить, что вы точно придёте. Если планы изменятся, воспользуйтесь кнопками ниже или свяжитесь с HR.`,
+            `Здравствуйте, ${candidate.full_name}! Ваша запись на собеседование в 35 Health Clubs ПОДТВЕРЖДЕНА.\n\nВакансия: ${vacancy?.title ?? 'уточняется'}.\nДата и время: ${date} (Ташкент).\n\nНапоминания придут за 3 часа до собеседования и за 1 час до начала. В сообщении за 1 час попросим подтвердить, что вы точно придёте. Если планы изменятся, воспользуйтесь кнопками ниже или свяжитесь с HR.`,
             keyboard([
               [{ text: 'Попросить другое время', callback_data: 'candidate:reschedule:' + interview.id }],
               [{ text: 'Отменить запись', callback_data: 'candidate:cancel:' + interview.id }],
-            ]));;
+             ]));
         }
       }
       await audit('interview_' + hrAction.action, interview.id, { previous_status: interview.status, new_status: update.status });
@@ -378,7 +378,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await supabase.from('registration_sessions').update({
       step: 'vacancy', payload: { ...payload, phone }, updated_at: new Date().toISOString(),
     }).eq('telegram_user_id', userId);
-    await send(`Напишите название вакансии текстом (не выбирайте из кнопок).\\n\\nОткрытые вакансии: ${vacancies.map(v => v.title).join(', ')}`);
+    await send(`Напишите название вакансии текстом (не выбирайте из кнопок).\n\nОткрытые вакансии: ${vacancies.map(v => v.title).join(', ')}`);
     return json(res, 200, { ok: true });
   }
 
@@ -404,7 +404,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       step: 'time', payload: { ...payload, vacancy_id: match.id, vacancy_title: match.title },
       updated_at: new Date().toISOString(),
     }).eq('telegram_user_id', userId);
-    await send(`Вакансия: ${match.title}.\\nТеперь напишите желаемую дату и время в формате ГГГГ-ММ-ДД ЧЧ:ММ (время Ташкента). HR подтвердит запись.`);
+    await send(`Вакансия: ${match.title}.\nТеперь напишите желаемую дату и время в формате ГГГГ-ММ-ДД ЧЧ:ММ (время Ташкента). HR подтвердит запись.`);
     return json(res, 200, { ok: true });
   }
 
