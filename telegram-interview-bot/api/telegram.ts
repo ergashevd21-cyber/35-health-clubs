@@ -180,6 +180,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const text = String(message?.text ?? '').trim();
+  if (text === '/myid') {
+    await send(`Ваш Telegram ID: ${userId}\\nПередайте этот номер ответственному за настройку HR-доступа. Не отправляйте токены бота или ключи Supabase.`);
+    return json(res, 200, { ok: true });
+  }
+
   if (text === '/hr' || text === '/admin') {
     await showHrQueue();
     return json(res, 200, { ok: true });
