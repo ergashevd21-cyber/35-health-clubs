@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const hrAdminIds = process.env.HR_TELEGRAM_IDS ?? '';
   const audit = async (action: string, entityId: string, details: Record<string, unknown> = {}) => {
     const { error } = await supabase.from('audit_logs').insert({
-      actor_type: 'telegram_admin', action, entity_type: 'interview', entity_id: entityId,
+      actor_type: 'system', action, entity_type: 'interview', entity_id: entityId,
       details: { telegram_user_id: String(userId), ...details },
     });
     if (error) console.error('HR audit log failed', error.message);
