@@ -276,12 +276,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (candidate?.telegram_chat_id) {
           const date = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'long', timeStyle: 'short' }).format(new Date(interview.scheduled_at));
           await sendTo(candidate.telegram_chat_id,
-            `Здравствуйте, ${candidate.full_name}! HR подтвердил собеседование в 35 Health Clubs.\nВакансия: ${vacancy?.title ?? 'уточняется'}.\nВремя: ${date} (Ташкент).\nПожалуйста, подтвердите участие или выберите другое действие.`,
+            `Здравствуйте, ${candidate.full_name}! Ваша запись на собеседование в 35 Health Clubs ПОДТВЕРЖДЕНА.\\n\\nВакансия: ${vacancy?.title ?? 'уточняется'}.\\nДата и время: ${date} (Ташкент).\\n\\nНапоминания придут за 3 часа до собеседования и за 1 час до начала. В сообщении за 1 час попросим подтвердить, что вы точно придёте. Если планы изменятся, воспользуйтесь кнопками ниже или свяжитесь с HR.`,
             keyboard([
-              [{ text: 'Подтверждаю участие', callback_data: 'candidate:confirm:' + interview.id }],
               [{ text: 'Попросить другое время', callback_data: 'candidate:reschedule:' + interview.id }],
               [{ text: 'Отменить запись', callback_data: 'candidate:cancel:' + interview.id }],
-            ]));
+            ]));;
         }
       }
       await audit('interview_' + hrAction.action, interview.id, { previous_status: interview.status, new_status: update.status });
