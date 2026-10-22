@@ -246,7 +246,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (candidate?.telegram_chat_id) {
           const date = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'long', timeStyle: 'short' }).format(new Date(interview.scheduled_at));
           await sendTo(candidate.telegram_chat_id,
-            `Здравствуйте, ${candidate.full_name}! HR подтвердил собеседование в 35 Health Clubs.\\nВакансия: ${vacancy?.title ?? 'уточняется'}.\\nВремя: ${date} (Ташкент).\\nПожалуйста, подтвердите участие или выберите другое действие.`,
+            `Здравствуйте, ${candidate.full_name}! HR подтвердил собеседование в 35 Health Clubs.\nВакансия: ${vacancy?.title ?? 'уточняется'}.\nВремя: ${date} (Ташкент).\nПожалуйста, подтвердите участие или выберите другое действие.`,
             keyboard([
               [{ text: 'Подтверждаю участие', callback_data: 'candidate:confirm:' + interview.id }],
               [{ text: 'Попросить другое время', callback_data: 'candidate:reschedule:' + interview.id }],
@@ -286,7 +286,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const text = String(message?.text ?? '').trim();
   if (text === '/myid') {
-    await send(`Ваш Telegram ID: ${userId}\\nПередайте этот номер ответственному за настройку HR-доступа. Не отправляйте токены бота или ключи Supabase.`);
+    await send(`Ваш Telegram ID: ${userId}\nПередайте этот номер ответственному за настройку HR-доступа. Не отправляйте токены бота или ключи Supabase.`);
     return json(res, 200, { ok: true });
   }
 
@@ -415,7 +415,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         new_values: { scheduled_at: scheduledAt, status: 'pending_confirmation' },
       });
       await supabase.from('registration_sessions').delete().eq('telegram_user_id', userId);
-      await send(`Спасибо, ${payload.full_name}! Запрос на перенос собеседования сохранён.\\nНовое желаемое время: ${text} (Ташкент).\\nHR должен подтвердить новое время; прежнее время пока не считается подтверждённым.`);
+      await send(`Спасибо, ${payload.full_name}! Запрос на перенос собеседования сохранён.\nНовое желаемое время: ${text} (Ташкент).\nHR должен подтвердить новое время; прежнее время пока не считается подтверждённым.`);
       return json(res, 200, { ok: true });
     }
 
