@@ -1,0 +1,32 @@
+name: Telegram interview bot tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "telegram-interview-bot/**"
+      - ".github/workflows/telegram-bot-tests.yml"
+  pull_request:
+    paths:
+      - "telegram-interview-bot/**"
+      - ".github/workflows/telegram-bot-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: telegram-interview-bot
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install
+      - name: Run Worker tests
+        run: npm test
+      - name: Validate Worker bundle
+        run: npx wrangler deploy --dry-run
