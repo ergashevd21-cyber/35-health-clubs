@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { isHrAdmin, parseHrAction } from '../lib/hr-admin.mjs';
+import { isHrAdmin, parseCandidateAction, parseHrAction } from '../lib/hr-admin.mjs';
 
 const json = (res: VercelResponse, status: number, body: unknown) => res.status(status).json(body);
 const TASHKENT_OFFSET = '+05:00';
@@ -43,14 +43,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!chatId || !userId) return json(res, 200, { ok: true });
 
   const telegramApi = `https://api.telegram.org/bot${token}`;
-  const send = async (body: string, replyMarkup?: unknown) => {
+  const sendTo = async (targetChatId: number | string, body: string, replyMarkup?: unknown) => {
     const response = await fetch(`${telegramApi}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: body, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
+      body: JSON.stringify({ chat_id: targetChatId, text: body, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
     });
     if (!response.ok) console.error('Telegram sendMessage failed', response.status);
   };
+  const send = (body: string, replyMarkup?: unknown) => sendTo(chatId, body, replyMarkup);
   const keyboard = (rows: Array<Array<{ text: string; callback_data: string }>>) => ({ inline_keyboard: rows });
   const hrAdminIds = process.env.HR_TELEGRAM_IDS ?? '';
   const audit = async (action: string, entityId: string, details: Record<string, unknown> = {}) => {
@@ -108,6 +109,92 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({ callback_query_id: callback.id }),
     });
     const data = String(callback.data ?? '');
+    const candidateAction = parseCandidateAction(data);
+    if (candidateAction) {
+      const { data: interview, error: interviewLookupError } = await supabase.from('interviews')
+        .select('id,application_id,scheduled_at,status,reminder_generation')
+        .eq('id', candidateAction.interviewId).maybeSingle();
+      if (interviewLookupError || !interview) {
+        await send('Собеседование не найдено. Обратитесь к HR.');
+        return json(res, 200, { ok: true });
+      }
+      const { data: application } = await supabase.from('applications')
+        .select('id,candidate_id,vacancy_id').eq('id', interview.application_id).maybeSingle();
+      const { data: candidate } = application
+        ? await supabase.from('candidates').select('id,telegram_user_id,telegram_chat_id,full_name,phone')
+            .eq('id', application.candidate_id).maybeSingle()
+        : { data: null };
+      if (!candidate || String(candidate.telegram_user_id) !== String(userId)) {
+        await send('Эта кнопка предназначена для кандидата, которому принадлежит запись.');
+        return json(res, 200, { ok: true });
+      }
+
+      if (candidateAction.action === 'confirm') {
+        if (interview.status !== 'confirmed') {
+          await send('Подтверждение HR ещё не получено или запись уже изменена. При необходимости свяжитесь с HR.');
+          return json(res, 200, { ok: true });
+        }
+        const confirmedAt = new Date().toISOString();
+        const { error } = await supabase.from('interviews').update({
+          candidate_confirmation_at: confirmedAt, updated_at: confirmedAt,
+        }).eq('id', interview.id).eq('status', 'confirmed');
+        if (error) {
+          console.error('Candidate confirmation failed', error.message);
+          await send('Не удалось сохранить подтверждение. Попробуйте позже.');
+          return json(res, 200, { ok: true });
+        }
+        await supabase.from('interview_events').insert({
+          interview_id: interview.id, actor_type: 'candidate', event_type: 'candidate_confirmed',
+          old_values: { candidate_confirmation_at: null }, new_values: { candidate_confirmation_at: confirmedAt },
+        });
+        await send('Спасибо! Ваше участие в собеседовании подтверждено.');
+        return json(res, 200, { ok: true });
+      }
+
+      if (candidateAction.action === 'cancel') {
+        if (!['pending_confirmation', 'confirmed', 'scheduled', 'rescheduled'].includes(interview.status)) {
+          await send('Эту запись уже нельзя отменить через бота. Обратитесь к HR.');
+          return json(res, 200, { ok: true });
+        }
+        const cancelledAt = new Date().toISOString();
+        const { error } = await supabase.from('interviews').update({
+          status: 'cancelled', updated_at: cancelledAt, completed_at: cancelledAt,
+        }).eq('id', interview.id);
+        if (error) {
+          console.error('Candidate cancellation failed', error.message);
+          await send('Не удалось отменить запись. Свяжитесь с HR.');
+          return json(res, 200, { ok: true });
+        }
+        await supabase.from('applications').update({ status: 'withdrawn', updated_at: cancelledAt }).eq('id', interview.application_id);
+        await supabase.from('reminder_jobs').update({ status: 'cancelled', updated_at: cancelledAt })
+          .eq('interview_id', interview.id).in('status', ['pending', 'processing']);
+        await supabase.from('interview_events').insert({
+          interview_id: interview.id, actor_type: 'candidate', event_type: 'candidate_cancelled',
+          old_values: { status: interview.status }, new_values: { status: 'cancelled' },
+        });
+        await send('Ваша запись отменена. Если захотите записаться снова, отправьте /start.');
+        return json(res, 200, { ok: true });
+      }
+
+      if (!['confirmed', 'scheduled', 'rescheduled'].includes(interview.status) || !application) {
+        await send('Сначала дождитесь подтверждения HR. Если нужно изменить время, обратитесь к HR.');
+        return json(res, 200, { ok: true });
+      }
+      const { data: vacancy } = await supabase.from('vacancies').select('title')
+        .eq('id', application.vacancy_id).maybeSingle();
+      await supabase.from('registration_sessions').upsert({
+        telegram_user_id: userId, telegram_chat_id: chatId, step: 'time',
+        payload: {
+          full_name: candidate.full_name, phone: candidate.phone,
+          reschedule_interview_id: interview.id, vacancy_id: application.vacancy_id,
+          vacancy_title: vacancy?.title ?? 'Вакансия',
+        },
+        updated_at: new Date().toISOString(),
+      });
+      await send('Напишите новую желаемую дату и время в формате ГГГГ-ММ-ДД ЧЧ:ММ (время Ташкента). Текущее время собеседования сохранится, пока HR не подтвердит новый запрос.');
+      return json(res, 200, { ok: true });
+    }
+
     const hrAction = parseHrAction(data);
     if (hrAction) {
       if (!isHrAdmin(userId, hrAdminIds)) {
@@ -119,7 +206,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return json(res, 200, { ok: true });
       }
       const { data: interview, error: lookupError } = await supabase.from('interviews')
-        .select('id,application_id,status').eq('id', hrAction.interviewId).maybeSingle();
+        .select('id,application_id,status,scheduled_at').eq('id', hrAction.interviewId).maybeSingle();
       if (lookupError || !interview) {
         await send('Собеседование не найдено. Обновите список.');
         return json(res, 200, { ok: true });
@@ -148,6 +235,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (applicationStatus) {
         const { error } = await supabase.from('applications').update({ status: applicationStatus, updated_at: new Date().toISOString() }).eq('id', interview.application_id);
         if (error) console.error('HR application update failed', error.message);
+      }
+      if (hrAction.action === 'confirm') {
+        const { data: app } = await supabase.from('applications').select('candidate_id,vacancy_id')
+          .eq('id', interview.application_id).maybeSingle();
+        const [{ data: candidate }, { data: vacancy }] = await Promise.all([
+          app ? supabase.from('candidates').select('full_name,telegram_chat_id').eq('id', app.candidate_id).maybeSingle() : Promise.resolve({ data: null }),
+          app ? supabase.from('vacancies').select('title').eq('id', app.vacancy_id).maybeSingle() : Promise.resolve({ data: null }),
+        ]);
+        if (candidate?.telegram_chat_id) {
+          const date = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'long', timeStyle: 'short' }).format(new Date(interview.scheduled_at));
+          await sendTo(candidate.telegram_chat_id,
+            `Здравствуйте, ${candidate.full_name}! HR подтвердил собеседование в 35 Health Clubs.\\nВакансия: ${vacancy?.title ?? 'уточняется'}.\\nВремя: ${date} (Ташкент).\\nПожалуйста, подтвердите участие или выберите другое действие.`,
+            keyboard([
+              [{ text: 'Подтверждаю участие', callback_data: 'candidate:confirm:' + interview.id }],
+              [{ text: 'Попросить другое время', callback_data: 'candidate:reschedule:' + interview.id }],
+              [{ text: 'Отменить запись', callback_data: 'candidate:cancel:' + interview.id }],
+            ]));
+        }
       }
       await audit('interview_' + hrAction.action, interview.id, { previous_status: interview.status, new_status: update.status });
       await send(hrAction.action === 'confirm' ? 'Собеседование подтверждено.' : hrAction.action === 'attended' ? 'Явка отмечена: кандидат пришёл.' : 'Отмечена неявка кандидата.');
@@ -282,6 +387,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       candidateId = candidate.id;
     }
+    if (payload.reschedule_interview_id) {
+      const { data: oldInterview, error: oldInterviewError } = await supabase.from('interviews')
+        .select('id,application_id,scheduled_at,status,reminder_generation')
+        .eq('id', payload.reschedule_interview_id).maybeSingle();
+      if (oldInterviewError || !oldInterview || oldInterview.application_id == null ||
+          !['confirmed', 'scheduled', 'rescheduled'].includes(oldInterview.status)) {
+        await send('Не удалось изменить время: запись уже изменилась. Обратитесь к HR.');
+        return json(res, 200, { ok: true });
+      }
+      const changedAt = new Date().toISOString();
+      const { error: rescheduleError } = await supabase.from('interviews').update({
+        scheduled_at: scheduledAt, status: 'pending_confirmation',
+        reminder_generation: oldInterview.reminder_generation + 1,
+        candidate_confirmation_at: null, updated_at: changedAt,
+      }).eq('id', oldInterview.id);
+      if (rescheduleError) {
+        console.error('Interview reschedule request failed', rescheduleError.message);
+        await send('Не удалось сохранить запрос на новое время. Попробуйте позже.');
+        return json(res, 200, { ok: true });
+      }
+      await supabase.from('reminder_jobs').update({ status: 'cancelled', updated_at: changedAt })
+        .eq('interview_id', oldInterview.id).in('status', ['pending', 'processing']);
+      await supabase.from('interview_events').insert({
+        interview_id: oldInterview.id, actor_type: 'candidate', event_type: 'reschedule_requested',
+        old_values: { scheduled_at: oldInterview.scheduled_at, status: oldInterview.status },
+        new_values: { scheduled_at: scheduledAt, status: 'pending_confirmation' },
+      });
+      await supabase.from('registration_sessions').delete().eq('telegram_user_id', userId);
+      await send(`Спасибо, ${payload.full_name}! Запрос на перенос собеседования сохранён.\\nНовое желаемое время: ${text} (Ташкент).\\nHR должен подтвердить новое время; прежнее время пока не считается подтверждённым.`);
+      return json(res, 200, { ok: true });
+    }
+
     const { data: application, error: applicationError } = await supabase.from('applications').insert({
       candidate_id: candidateId, vacancy_id: payload.vacancy_id, source: 'telegram',
       notes: 'Кандидат самостоятельно выбрал желаемое время; требуется подтверждение HR.',
