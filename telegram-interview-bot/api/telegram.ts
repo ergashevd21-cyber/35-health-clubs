@@ -129,6 +129,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return json(res, 200, { ok: true });
       }
 
+      if (candidateAction.action === 'confirm_arrival' || candidateAction.action === 'cannot_attend') {
+        if (!['confirmed', 'scheduled', 'rescheduled'].includes(interview.status)) {
+          await send('Эта запись уже изменена или отменена. Если нужна помощь, свяжитесь с HR.');
+          return json(res, 200, { ok: true });
+        }
+        const isComing = candidateAction.action === 'confirm_arrival';
+        const eventType = isComing ? 'candidate_arrival_confirmed' : 'candidate_cannot_attend';
+        const createdAt = new Date().toISOString();
+        const { error } = await supabase.from('interview_events').insert({
+          interview_id: interview.id, actor_type: 'candidate', event_type: eventType,
+          old_values: {}, new_values: { response: isComing ? 'will_attend' : 'cannot_attend', responded_at: createdAt },
+        });
+        if (error) {
+          console.error('Candidate arrival response failed', error.message);
+          await send('Не удалось сохранить ответ. Попробуйте ещё раз или свяжитесь с HR.');
+          return json(res, 200, { ok: true });
+        }
+        const date = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'long', timeStyle: 'short' }).format(new Date(interview.scheduled_at));
+        if (!isComing) {
+          const hrIds = hrAdminIds.split(',').map(value => value.trim()).filter(value => /^\\d+$/.test(value));
+          for (const hrId of hrIds) {
+            await sendTo(hrId, `Кандидат сообщил, что не сможет прийти на собеседование.\\nКандидат: ${candidate.full_name}\\nВремя: ${date} (Ташкент).\\nПроверьте запись в HR-панели.`);
+          }
+          await send('Спасибо, что предупредили. Я уведомил HR — пожалуйста, свяжитесь с отделом HR, чтобы согласовать дальнейшие действия.');
+        } else {
+          await send('Спасибо! Ваш ответ сохранён: вы планируете прийти на собеседование. До встречи!');
+        }
+        return json(res, 200, { ok: true });
+      }
+
       if (candidateAction.action === 'confirm') {
         if (interview.status !== 'confirmed') {
           await send('Подтверждение HR ещё не получено или запись уже изменена. При необходимости свяжитесь с HR.');
@@ -335,11 +365,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await send('Не удалось распознать номер. Отправьте номер в формате +998901234567.');
       return json(res, 200, { ok: true });
     }
-    await supabase.from('registration_sessions').update({
-      step: 'vacancy', payload: { ...payload, phone }, updated_at: new Date().toISOString(),
-    }).eq('telegram_user_id', userId);
     const { data: vacancies, error } = await supabase.from('vacancies')
-      .select('id,title,department').eq('is_open', true).order('title');
+      .select('title').eq('is_open', true).order('title');
     if (error) {
       console.error('Vacancy lookup failed', error.message);
       await send('Не удалось загрузить вакансии. Попробуйте позже, отправив /start.');
@@ -349,12 +376,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await send('Сейчас открытых вакансий нет. Пожалуйста, свяжитесь с HR 35 Health Clubs.');
       return json(res, 200, { ok: true });
     }
-    const rows = vacancies.map((v: { id: string; title: string; department?: string | null }) => [{
-      text: v.department ? `${v.title} — ${v.department}` : v.title,
-      callback_data: `vacancy:${v.id}`,
-    }]);
-    rows.push([{ text: 'Отменить регистрацию', callback_data: 'registration:cancel' }]);
-    await send('Выберите вакансию:', keyboard(rows));
+    await supabase.from('registration_sessions').update({
+      step: 'vacancy', payload: { ...payload, phone }, updated_at: new Date().toISOString(),
+    }).eq('telegram_user_id', userId);
+    await send(`Напишите название вакансии текстом (не выбирайте из кнопок).\\n\\nОткрытые вакансии: ${vacancies.map(v => v.title).join(', ')}`);
+    return json(res, 200, { ok: true });
+  }
+
+  if (session.step === 'vacancy') {
+    if (!text || text.startsWith('/')) {
+      await send('Напишите название вакансии текстом, например: Оператор колл-центра.');
+      return json(res, 200, { ok: true });
+    }
+    const { data: vacancies, error } = await supabase.from('vacancies')
+      .select('id,title').eq('is_open', true).order('title');
+    if (error || !vacancies?.length) {
+      console.error('Vacancy lookup failed', error?.message);
+      await send('Не удалось проверить вакансию. Попробуйте позже или отправьте /start.');
+      return json(res, 200, { ok: true });
+    }
+    const normalized = text.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').trim();
+    const match = vacancies.find(v => v.title.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').trim() === normalized);
+    if (!match) {
+      await send(`Не нашёл точного совпадения. Напишите название одной из открытых вакансий: ${vacancies.map(v => v.title).join(', ')}`);
+      return json(res, 200, { ok: true });
+    }
+    await supabase.from('registration_sessions').update({
+      step: 'time', payload: { ...payload, vacancy_id: match.id, vacancy_title: match.title },
+      updated_at: new Date().toISOString(),
+    }).eq('telegram_user_id', userId);
+    await send(`Вакансия: ${match.title}.\\nТеперь напишите желаемую дату и время в формате ГГГГ-ММ-ДД ЧЧ:ММ (время Ташкента). HR подтвердит запись.`);
     return json(res, 200, { ok: true });
   }
 
