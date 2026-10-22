@@ -18,3 +18,15 @@ test('HR callback parser accepts list and supported interview actions', () => {
   assert.equal(parseHrAction('hr:delete:123e4567-e89b-12d3-a456-426614174000'), null);
   assert.equal(parseHrAction('hr:confirm:not-a-uuid'), null);
 });
+
+import { parseCandidateAction } from '../lib/hr-admin.mjs';
+
+test('candidate callback parser accepts only supported candidate actions', () => {
+  assert.deepEqual(parseCandidateAction('candidate:confirm:123e4567-e89b-12d3-a456-426614174000'), {
+    action: 'confirm', interviewId: '123e4567-e89b-12d3-a456-426614174000'
+  });
+  assert.equal(parseCandidateAction('candidate:reschedule:123e4567-e89b-12d3-a456-426614174000').action, 'reschedule');
+  assert.equal(parseCandidateAction('candidate:cancel:123e4567-e89b-12d3-a456-426614174000').action, 'cancel');
+  assert.equal(parseCandidateAction('candidate:delete:123e4567-e89b-12d3-a456-426614174000'), null);
+  assert.equal(parseCandidateAction('candidate:confirm:not-a-uuid'), null);
+});
