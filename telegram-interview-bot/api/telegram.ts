@@ -190,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const { error: interviewError } = await supabase.from('interviews').insert({
       application_id: application.id, scheduled_at: scheduledAt, timezone: 'Asia/Tashkent',
-      location: 'Уточняется HR',
+      location: 'Уточняется HR', status: 'pending_confirmation',
     });
     if (interviewError) {
       console.error('Interview insert failed', interviewError.message);
