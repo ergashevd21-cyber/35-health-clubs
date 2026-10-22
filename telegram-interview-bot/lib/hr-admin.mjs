@@ -12,7 +12,7 @@ export function parseHrAction(value) {
 }
 
 export function parseCandidateAction(value) {
-  const match = String(value ?? '').match(/^candidate:(confirm|reschedule|cancel):([0-9a-f-]{36})$/i);
+  const match = String(value ?? '').match(/^candidate:(confirm|reschedule|cancel|confirm_arrival|cannot_attend):([0-9a-f-]{36})$/i);
   if (!match) return null;
   return { action: match[1].toLowerCase(), interviewId: match[2] };
 }
