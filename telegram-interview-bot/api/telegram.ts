@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { isHrAdmin, parseHrAction } from '../lib/hr-admin.mjs';
 
 const json = (res: VercelResponse, status: number, body: unknown) => res.status(status).json(body);
 const TASHKENT_OFFSET = '+05:00';
@@ -50,9 +51,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     if (!response.ok) console.error('Telegram sendMessage failed', response.status);
   };
-  const keyboard = (rows: Array<Array<{ text: string; callback_data: string }>>) => ({
-    inline_keyboard: rows,
-  });
+  const keyboard = (rows: Array<Array<{ text: string; callback_data: string }>>) => ({ inline_keyboard: rows });
+  const hrAdminIds = process.env.HR_TELEGRAM_IDS ?? '';
+  const audit = async (action: string, entityId: string, details: Record<string, unknown> = {}) => {
+    const { error } = await supabase.from('audit_logs').insert({
+      actor_type: 'telegram_admin', action, entity_type: 'interview', entity_id: entityId,
+      details: { telegram_user_id: String(userId), ...details },
+    });
+    if (error) console.error('HR audit log failed', error.message);
+  };
+  const showHrQueue = async () => {
+    if (!isHrAdmin(userId, hrAdminIds)) {
+      await send('Доступ к HR-панели не предоставлен.');
+      return;
+    }
+    const { data: items, error } = await supabase.from('interviews')
+      .select('id,scheduled_at,status,application_id')
+      .in('status', ['pending_confirmation', 'confirmed', 'scheduled', 'rescheduled'])
+      .gte('scheduled_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .order('scheduled_at', { ascending: true }).limit(10);
+    if (error) {
+      console.error('HR queue lookup failed', error.message);
+      await send('Не удалось загрузить список собеседований. Попробуйте позже.');
+      return;
+    }
+    if (!items?.length) {
+      await send('Очередь собеседований пуста.', keyboard([[{ text: 'Обновить', callback_data: 'hr:list' }]]));
+      return;
+    }
+    const lines: string[] = ['HR-панель · ближайшие собеседования'];
+    const rows: Array<Array<{ text: string; callback_data: string }>> = [];
+    for (const item of items) {
+      const { data: app } = await supabase.from('applications').select('candidate_id,vacancy_id').eq('id', item.application_id).maybeSingle();
+      if (!app) continue;
+      const [{ data: candidate }, { data: vacancy }] = await Promise.all([
+        supabase.from('candidates').select('full_name,phone').eq('id', app.candidate_id).maybeSingle(),
+        supabase.from('vacancies').select('title').eq('id', app.vacancy_id).maybeSingle(),
+      ]);
+      const date = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'short', timeStyle: 'short' }).format(new Date(item.scheduled_at));
+      lines.push('', `• ${candidate?.full_name ?? 'Кандидат'} · ${vacancy?.title ?? 'Вакансия'}`, `  ${date} · ${item.status}`, `  Телефон: ${candidate?.phone ?? 'не указан'}`);
+      if (item.status === 'pending_confirmation') {
+        rows.push([{ text: 'Подтвердить ' + date, callback_data: 'hr:confirm:' + item.id }]);
+      } else {
+        rows.push([{ text: 'Был(а): ' + (candidate?.full_name ?? date), callback_data: 'hr:attended:' + item.id },
+          { text: 'Не явился', callback_data: 'hr:no_show:' + item.id }]);
+      }
+    }
+    rows.push([{ text: 'Обновить список', callback_data: 'hr:list' }]);
+    await send(lines.join('\n'), keyboard(rows));
+  };
 
   if (callback?.id) {
     await fetch(`${telegramApi}/answerCallbackQuery`, {
@@ -61,6 +108,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({ callback_query_id: callback.id }),
     });
     const data = String(callback.data ?? '');
+    const hrAction = parseHrAction(data);
+    if (hrAction) {
+      if (!isHrAdmin(userId, hrAdminIds)) {
+        await send('Доступ к HR-панели не предоставлен.');
+        return json(res, 200, { ok: true });
+      }
+      if (hrAction.action === 'list') {
+        await showHrQueue();
+        return json(res, 200, { ok: true });
+      }
+      const { data: interview, error: lookupError } = await supabase.from('interviews')
+        .select('id,application_id,status').eq('id', hrAction.interviewId).maybeSingle();
+      if (lookupError || !interview) {
+        await send('Собеседование не найдено. Обновите список.');
+        return json(res, 200, { ok: true });
+      }
+      let update: Record<string, unknown> = {};
+      let applicationStatus: string | null = null;
+      if (hrAction.action === 'confirm' && interview.status === 'pending_confirmation') {
+        update = { status: 'confirmed', updated_at: new Date().toISOString() };
+        applicationStatus = 'confirmed';
+      } else if (hrAction.action === 'attended' && ['confirmed', 'scheduled', 'rescheduled'].includes(interview.status)) {
+        update = { status: 'completed', actual_attendance: true, attendance_marked_at: new Date().toISOString(), completed_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        applicationStatus = 'attended';
+      } else if (hrAction.action === 'no_show' && ['confirmed', 'scheduled', 'rescheduled'].includes(interview.status)) {
+        update = { status: 'no_show', actual_attendance: false, attendance_marked_at: new Date().toISOString(), completed_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        applicationStatus = 'no_show';
+      } else {
+        await send('Это действие уже выполнено или недоступно для текущего статуса.');
+        return json(res, 200, { ok: true });
+      }
+      const { error: updateError } = await supabase.from('interviews').update(update).eq('id', interview.id);
+      if (updateError) {
+        console.error('HR interview update failed', updateError.message);
+        await send('Не удалось обновить собеседование. Попробуйте ещё раз.');
+        return json(res, 200, { ok: true });
+      }
+      if (applicationStatus) {
+        const { error } = await supabase.from('applications').update({ status: applicationStatus, updated_at: new Date().toISOString() }).eq('id', interview.application_id);
+        if (error) console.error('HR application update failed', error.message);
+      }
+      await audit('interview_' + hrAction.action, interview.id, { previous_status: interview.status, new_status: update.status });
+      await send(hrAction.action === 'confirm' ? 'Собеседование подтверждено.' : hrAction.action === 'attended' ? 'Явка отмечена: кандидат пришёл.' : 'Отмечена неявка кандидата.');
+      await showHrQueue();
+      return json(res, 200, { ok: true });
+    }
     if (data === 'registration:cancel') {
       await supabase.from('registration_sessions').delete().eq('telegram_user_id', userId);
       await send('Регистрация остановлена. Чтобы начать заново, отправьте /start.');
@@ -87,6 +180,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const text = String(message?.text ?? '').trim();
+  if (text === '/hr' || text === '/admin') {
+    await showHrQueue();
+    return json(res, 200, { ok: true });
+  }
+
   if (text === '/start' || text === '/restart') {
     await supabase.from('registration_sessions').upsert({
       telegram_user_id: userId, telegram_chat_id: chatId, step: 'name', payload: {}, updated_at: new Date().toISOString(),
