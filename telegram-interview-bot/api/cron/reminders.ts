@@ -106,8 +106,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const lead = rule.minutes_before >= 60 ? `${Math.round(rule.minutes_before / 60)} ч.` : `${rule.minutes_before} мин.`;
     const isOneHourReminder = rule.minutes_before === 60;
     const message = isOneHourReminder
-      ? `Здравствуйте, ${candidate.full_name}! До собеседования в 35 Health Clubs остался 1 час.\\nВакансия: ${vacancy?.title ?? 'уточняется'}.\\nВремя: ${date} (Ташкент).\\nПожалуйста, подтвердите, что вы точно придёте, или сообщите, если не сможете.`
-      : `Здравствуйте, ${candidate.full_name}! Ваша запись на собеседование в 35 Health Clubs подтверждена. Напоминаем: до встречи осталось 3 часа.\\nВакансия: ${vacancy?.title ?? 'уточняется'}.\\nВремя: ${date} (Ташкент).`;
+      ? `Здравствуйте, ${candidate.full_name}! До собеседования в 35 Health Clubs остался 1 час.\nВакансия: ${vacancy?.title ?? 'уточняется'}.\nВремя: ${date} (Ташкент).\nПожалуйста, подтвердите, что вы точно придёте, или сообщите, если не сможете.`
+      : `Здравствуйте, ${candidate.full_name}! Ваша запись на собеседование в 35 Health Clubs подтверждена. Напоминаем: до встречи осталось 3 часа.\nВакансия: ${vacancy?.title ?? 'уточняется'}.\nВремя: ${date} (Ташкент).`;
     const replyMarkup = isOneHourReminder ? {
       inline_keyboard: [
         [{ text: 'Подтверждаю, я приду', callback_data: 'candidate:confirm_arrival:' + interview.id }],
