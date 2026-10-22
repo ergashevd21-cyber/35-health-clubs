@@ -9,10 +9,11 @@ function parseTashkentDateTime(input: string): string | null {
   if (!match) return null;
   const [, y, mo, d, h, mi] = match;
   const year = Number(y), month = Number(mo), day = Number(d), hour = Number(h), minute = Number(mi);
-  const date = new Date(Date.UTC(year, month - 1, day, hour - 5, minute));
+  const localCalendarDate = new Date(Date.UTC(year, month - 1, day));
+  const instant = new Date(Date.UTC(year, month - 1, day, hour - 5, minute));
   if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) return null;
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-  if (date.getTime() <= Date.now()) return null;
+  if (localCalendarDate.getUTCFullYear() !== year || localCalendarDate.getUTCMonth() !== month - 1 || localCalendarDate.getUTCDate() !== day) return null;
+  if (instant.getTime() <= Date.now()) return null;
   return `${y}-${mo}-${d}T${h}:${mi}:00${TASHKENT_OFFSET}`;
 }
 
