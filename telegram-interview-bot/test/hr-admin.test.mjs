@@ -30,3 +30,13 @@ test('candidate callback parser accepts only supported candidate actions', () =>
   assert.equal(parseCandidateAction('candidate:delete:123e4567-e89b-12d3-a456-426614174000'), null);
   assert.equal(parseCandidateAction('candidate:confirm:not-a-uuid'), null);
 });
+
+
+test('candidate callback parser accepts one-hour arrival confirmation actions', () => {
+  assert.deepEqual(parseCandidateAction('candidate:confirm_arrival:123e4567-e89b-12d3-a456-426614174000'), {
+    action: 'confirm_arrival', interviewId: '123e4567-e89b-12d3-a456-426614174000'
+  });
+  assert.deepEqual(parseCandidateAction('candidate:cannot_attend:123e4567-e89b-12d3-a456-426614174000'), {
+    action: 'cannot_attend', interviewId: '123e4567-e89b-12d3-a456-426614174000'
+  });
+});
