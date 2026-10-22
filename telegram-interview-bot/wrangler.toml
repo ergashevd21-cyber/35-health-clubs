@@ -1,0 +1,12 @@
+name = "35-health-clubs-interview-bot"
+main = "worker.ts"
+compatibility_date = "2026-10-22"
+compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
+workers_dev = true
+
+[triggers]
+# Run every minute; the reminder endpoint only sends jobs whose run_at is due.
+crons = ["* * * * *"]
+
+[observability]
+enabled = true
