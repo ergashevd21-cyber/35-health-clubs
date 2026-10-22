@@ -104,12 +104,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const date = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'long', timeStyle: 'short' }).format(new Date(interview.scheduled_at));
     const lead = rule.minutes_before >= 60 ? `${Math.round(rule.minutes_before / 60)} ч.` : `${rule.minutes_before} мин.`;
-    const message = `Здравствуйте, ${candidate.full_name}! Напоминаем о собеседовании 35 Health Clubs за ${lead}.\nВакансия: ${vacancy?.title ?? 'уточняется'}.\nВремя: ${date} (Ташкент).\nЕсли планы изменились, пожалуйста, ответьте на это сообщение и свяжитесь с HR.`;
+    const isOneHourReminder = rule.minutes_before === 60;
+    const message = isOneHourReminder
+      ? `Здравствуйте, ${candidate.full_name}! До собеседования в 35 Health Clubs остался 1 час.\\nВакансия: ${vacancy?.title ?? 'уточняется'}.\\nВремя: ${date} (Ташкент).\\nПожалуйста, подтвердите, что вы точно придёте, или сообщите, если не сможете.`
+      : `Здравствуйте, ${candidate.full_name}! Ваша запись на собеседование в 35 Health Clubs подтверждена. Напоминаем: до встречи осталось 3 часа.\\nВакансия: ${vacancy?.title ?? 'уточняется'}.\\nВремя: ${date} (Ташкент).`;
+    const replyMarkup = isOneHourReminder ? {
+      inline_keyboard: [
+        [{ text: 'Подтверждаю, я приду', callback_data: 'candidate:confirm_arrival:' + interview.id }],
+        [{ text: 'Не смогу прийти', callback_data: 'candidate:cannot_attend:' + interview.id }],
+      ],
+    } : undefined;
     try {
       const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chat_id: candidate.telegram_chat_id, text: message }),
+        body: JSON.stringify({ chat_id: candidate.telegram_chat_id, text: message, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
       });
       const payload = await response.json() as { ok?: boolean; description?: string };
       if (!response.ok || !payload.ok) throw new Error(payload.description ?? `Telegram HTTP ${response.status}`);
