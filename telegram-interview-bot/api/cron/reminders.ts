@@ -38,6 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   for (const interview of interviews ?? []) {
     for (const rule of rules ?? []) {
       const runAt = new Date(new Date(interview.scheduled_at).getTime() - rule.minutes_before * 60_000);
+      // Do not send several stale reminders at once when a cron run was missed.
+      if (runAt.getTime() < now.getTime() - 5 * 60_000) continue;
       if (runAt.getTime() > now.getTime() + 48 * 60 * 60 * 1000) continue;
       jobs.push({
         interview_id: interview.id,
