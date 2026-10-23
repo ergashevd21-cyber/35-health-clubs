@@ -183,7 +183,8 @@ async function loadProfile(){
  setText("detailLastSignIn",prettyDate(user.last_sign_in_at));
  const state=statusInfo(role,request);
  setText("accessBadge",state.label);$("accessBadge").className="account-status "+state.className;setText("accessDescription",state.description);
- show("pendingActions",!role?.is_active);show("adminActions",Boolean(role?.is_active&&["owner","hr_director"].includes(role.role)));
+ show("pendingActions",!role?.is_active);show("adminActions",Boolean(role?.is_active&&role.role==="owner"));
+ document.querySelectorAll('a[href="access.html"]').forEach(link=>link.classList.toggle("hidden",!(role?.is_active&&role.role==="owner")));
  const canManage=Boolean(role?.is_active&&["owner","hr_director"].includes(role.role));
  show("surveyAdminTile",canManage);show("questionAdminTile",canManage);
  setText("linksNotice",canManage?"В вашей роли доступны инструменты управления опросами и вопросами.":"Ссылки на конструкторы скрыты, так как у вашей роли нет права на управление вопросами.");
