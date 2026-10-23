@@ -274,6 +274,7 @@ async function loadLiveStats(){
  hideReport(true);gate.classList.remove("hidden");gateById("liveStats").classList.remove("hidden");gateMsg("Загружаем безопасную сводку…");
  try{
   const {data:{session}}=await accessClient.auth.getSession();reportAccessGranted=Boolean(session);
+  const accessLinks=[...document.querySelectorAll('a[href="access.html"]')];if(session){const {data:{user}}=await accessClient.auth.getUser();const {data:role}=user?await accessClient.from("hr_user_roles").select("role,is_active").eq("user_id",user.id).maybeSingle():{data:null};accessLinks.forEach(link=>link.classList.toggle("hidden",!(role?.is_active&&role.role==="owner")));}else{accessLinks.forEach(link=>link.classList.add("hidden"));}
   const login=gateById("gateLogin");if(session)login.classList.add("hidden");else login.classList.remove("hidden");
   const filter=gateById("surveyFilter"),selectedSurveyId=filter?.value||"";
   const url="https://mvpfqnkpojhakugohctn.supabase.co/functions/v1/hr-public-summary"+(selectedSurveyId?"?survey_id="+encodeURIComponent(selectedSurveyId):"");
