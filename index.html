@@ -114,8 +114,15 @@ form.addEventListener("submit",async e=>{
  submit.disabled=true;submit.textContent="Отправляем…";status.textContent="Сохраняем ответы…";
  try{
   await activeSurveyReady;if(activeSurveyError)throw activeSurveyError;
+  // Refresh the active run immediately before saving so an old tab cannot submit against a stale run.
+  const freshRunRes=await fetch(SUPABASE_URL+"/rest/v1/survey_runs?select=id,starts_at,ends_at,status&survey_id=eq."+encodeURIComponent(activeSurveyId)+"&status=eq.active&order=run_number.desc&limit=1",{cache:"no-store",headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
+  if(!freshRunRes.ok)throw new Error("Не удалось проверить актуальность запуска. Обновите страницу и попробуйте снова.");
+  const freshRuns=await freshRunRes.json(),now=Date.now();
+  const freshRun=freshRuns.find(r=>new Date(r.starts_at).getTime()<=now&&(!r.ends_at||new Date(r.ends_at).getTime()>=now));
+  if(!freshRun)throw new Error("Этот запуск опроса уже недоступен. Откройте актуальную ссылку у HR.");
+  activeRunId=freshRun.id;
   const res=await fetch(SUPABASE_URL+"/rest/v1/survey_responses",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Prefer":"return=minimal"},body:JSON.stringify({answers,survey_id:activeSurveyId,run_id:activeRunId,survey_version:"run-"+activeRunId,submitted_at:new Date().toISOString()})});
-  if(!res.ok){let msg="Не удалось сохранить ответы. Попробуйте ещё раз.";try{const data=await res.json();if(data.message)console.error("Survey API:",data.message)}catch{}throw new Error(msg)}
+  if(!res.ok){let data={};try{data=await res.json()}catch{}console.error("Survey API save failed:",res.status,data);if(res.status===401||data.code==="42501")throw new Error("Сохранение отклонено проверкой доступа. Обновите страницу по исходной ссылке и попробуйте снова. Код: 42501");throw new Error(data.message||"Не удалось сохранить ответы. Попробуйте ещё раз.")}
   form.classList.add("hidden");document.getElementById("intro").classList.add("hidden");document.getElementById("success").style.display="block";window.scrollTo({top:0,behavior:"smooth"});
  }catch(err){status.className="status error";status.textContent=err.message||"Ошибка соединения. Проверьте интернет и попробуйте снова.";submit.disabled=false;submit.textContent="Попробовать снова →"}
 });
