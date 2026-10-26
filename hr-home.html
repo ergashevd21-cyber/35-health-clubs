@@ -39,40 +39,54 @@ const $=id=>document.getElementById(id);
 function status(message,isError=false){const node=$("status");if(!node)return;node.textContent=message;node.className="status"+(isError?" error":"")}
 function show(nodeId,visible){const node=$(nodeId);if(node)node.classList.toggle("hidden",!visible)}
 let syncInProgress=false;
+let syncQueued=false;
 async function sync(){
- if(syncInProgress)return;
+ if(syncInProgress){syncQueued=true;return}
  syncInProgress=true;
  try{
   const {data:{session},error:sessionError}=await client.auth.getSession();
   if(sessionError)throw sessionError;
   if(!session?.user){
    show("auth",true);show("workspace",false);show("logout",false);show("heroAccessLink",false);show("accessCard",false);
-   $("sessionLabel").textContent="Не выполнен вход";
-   return;
+   $("sessionLabel").textContent="Не выполнен вход";status("");return;
   }
+  // Keep a valid login session separate from approval to use HR tools.
+  show("auth",false);show("workspace",false);show("logout",true);
+  $("sessionLabel").textContent="Проверяем права доступа…";
   const {data:{user},error:userError}=await client.auth.getUser();
   if(userError||!user)throw userError||new Error("Сессия не подтверждена");
   const {data:role,error:roleError}=await client.from("hr_user_roles").select("role,is_active").eq("user_id",user.id).maybeSingle();
   if(roleError)throw roleError;
   if(!role?.is_active){
-   show("auth",true);show("workspace",false);show("logout",true);show("heroAccessLink",false);show("accessCard",false);
+   show("workspace",false);show("heroAccessLink",false);show("accessCard",false);
    $("sessionLabel").textContent="Ожидает одобрения";
-   status("Доступ не активирован. Обратитесь к главному руководителю.",true);
-   return;
+   status("Вход выполнен, но доступ к HR-разделам ещё не активирован. Обратитесь к главному руководителю.",true);return;
   }
   const isOwner=role.role==="owner";
-  show("auth",false);show("workspace",true);show("logout",true);show("heroAccessLink",isOwner);show("accessCard",isOwner);
+  show("workspace",true);show("heroAccessLink",isOwner);show("accessCard",isOwner);
   $("sessionLabel").textContent="Вы вошли в систему";
-  $("roleLabel").textContent="Роль: "+role.role;
-  status("");
+  $("roleLabel").textContent="Роль: "+role.role;status("");
  }catch(error){
-  show("auth",true);show("workspace",false);show("heroAccessLink",false);show("accessCard",false);
-  $("sessionLabel").textContent="Не удалось проверить сессию";
-  status("Не удалось проверить вход и права доступа. Обновите страницу или войдите снова.",true);
- }finally{syncInProgress=false}
+  let hasSession=false;
+  try{const result=await client.auth.getSession();hasSession=!!result.data?.session?.user}catch(_){}
+  show("auth",!hasSession);show("workspace",false);show("heroAccessLink",false);show("accessCard",false);
+  $("sessionLabel").textContent=hasSession?"Вход выполнен":"Не выполнен вход";
+  status(hasSession
+   ?"Вы вошли в систему, но не удалось проверить права доступа. Обновите страницу. Если ошибка повторится, проверьте подключение и права таблицы hr_user_roles в Supabase."
+   :"Не удалось восстановить сессию. Войдите в систему ещё раз.",true);
+ }finally{
+  syncInProgress=false;
+  if(syncQueued){syncQueued=false;setTimeout(()=>sync(),0)}
+ }
 }
-$("logout").onclick=async()=>{const {error}=await client.auth.signOut();if(error){status("Не удалось завершить сеанс. Повторите попытку.",true);return}await sync();status("Вы вышли из системы.")};
-client.auth.onAuthStateChange((event)=>{if(["SIGNED_IN","SIGNED_OUT","TOKEN_REFRESHED","USER_UPDATED"].includes(event))setTimeout(()=>sync(),0)});
+$("logout").onclick=async()=>{
+ const {error}=await client.auth.signOut();
+ if(error){status("Не удалось завершить сеанс. Повторите попытку.",true);return}
+ await sync();status("Вы вышли из системы.")
+};
+client.auth.onAuthStateChange((event)=>{
+ if(["SIGNED_IN","SIGNED_OUT","TOKEN_REFRESHED","USER_UPDATED","INITIAL_SESSION"].includes(event))setTimeout(()=>sync(),0)
+});
 window.addEventListener("pageshow",()=>sync());
 sync();
 </script></body></html>
