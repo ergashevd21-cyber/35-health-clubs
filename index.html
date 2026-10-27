@@ -77,7 +77,7 @@ let customQuestionCount=0,customQuestions=[],customQuestionOptions={};
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function updateProgress(){const answered=new Set(Array.from(form.querySelectorAll('input[type="radio"]:checked')).map(x=>x.name));Array.from(form.querySelectorAll("textarea")).forEach(x=>{if(x.value.trim())answered.add(x.name)});const done=answered.size;const total=defs.length+customQuestionCount+1;document.getElementById("progress").style.width=(done/total*100)+"%";document.getElementById("progressText").textContent=done+" из "+total+" вопросов заполнено"}
 function renderCustomQuestions(){
- const department=document.getElementById("surveyDepartment").value,position=document.getElementById("surveyPosition").value;
+ const department="",position=""; // Поля отдела и должности удалены из анонимного опроса.
  const visible=customQuestions.filter(q=>(!q.target_departments?.length||q.target_departments.includes(department))&&(!q.target_positions?.length||q.target_positions.includes(position)));
  customQuestionCount=visible.length;const root=document.getElementById("questions");root.innerHTML="";
  defs.forEach((q,i)=>{
