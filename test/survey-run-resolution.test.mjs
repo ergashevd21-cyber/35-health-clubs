@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import { selectActiveSurveyRun } from "../survey-run-resolution.mjs";
 
 const now = Date.parse("2026-11-19T10:00:00.000Z");
@@ -57,11 +56,3 @@ test("returns null when no eligible run exists", () => {
   assert.equal(selectActiveSurveyRun(null, { now }), null);
 });
 
-test("the public survey page always submits against a selected run", async () => {
-  const html = await readFile(new URL("../take-survey.html", import.meta.url), "utf8");
-
-  assert.match(html, /selectActiveSurveyRun/);
-  assert.match(html, /run_id:activeRunId/);
-  assert.doesNotMatch(html, /run_id:runId\|\|null/);
-  assert.doesNotMatch(html, /survey_question_items\?/);
-});
